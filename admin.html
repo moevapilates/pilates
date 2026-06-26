@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2C2C2C">
+<title>MOEVA PILATES — Admin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Inter:wght@300;400;500&display=swap');
+:root {
+  --sage:#8A9E8C;--sage-light:#C5D4C6;--sage-pale:#EEF3EE;
+  --charcoal:#2C2C2C;--warm-white:#FAF9F7;--sand:#D4C9B8;
+  --sand-light:#F0EBE3;--accent:#7A6E5F;--error:#C17A6A;
+  --success:#6A9E7A;--border:#DDD8D0;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Inter',sans-serif;background:var(--warm-white);color:var(--charcoal);font-size:14px;min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+header{background:var(--charcoal);color:var(--warm-white);padding:calc(14px + env(safe-area-inset-top)) 16px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px}
+header h1{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;letter-spacing:.04em}
+header h1 span{color:var(--sage-light);font-style:italic}
+.header-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.conn-status{font-size:10px;padding:4px 9px;border-radius:20px;font-weight:500;white-space:nowrap}
+.conn-ok{background:#2d4a2e;color:#90c793}
+.conn-err{background:#4a2d2d;color:#c79090}
+.tabs{display:flex;background:var(--sand-light);border-bottom:1px solid var(--border);padding:0 8px;position:sticky;top:0;z-index:90;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:14px 16px;cursor:pointer;font-size:13px;color:var(--accent);border-bottom:2px solid transparent;transition:all .2s;user-select:none;white-space:nowrap;min-height:48px;display:flex;align-items:center}
+.tab.active{color:var(--charcoal);border-bottom-color:var(--sage);font-weight:500}
+main{padding:16px;max-width:1100px;margin:0 auto;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.page{display:none}.page.active{display:block}
+/* SETUP BANNER */
+.setup-banner{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px;margin-bottom:18px;font-size:13px;line-height:1.7}
+.setup-banner strong{display:block;font-size:15px;margin-bottom:8px;color:#5d4037}
+.setup-banner code{background:#f5f5f5;padding:2px 7px;border-radius:4px;font-family:monospace;font-size:12px;word-break:break-all}
+.setup-banner input{margin:8px 0;padding:12px;border:1px solid #ddd;border-radius:8px;width:100%;font-size:16px;font-family:'Inter',sans-serif;min-height:46px}
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+.stat-card{background:white;border:1px solid var(--border);border-radius:10px;padding:16px}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:6px;font-weight:500}
+.stat-value{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:300;line-height:1}
+.stat-value.green{color:var(--success)}.stat-value.red{color:var(--error)}
+/* SECTION */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+.section-title{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:400}
+/* BUTTONS */
+.btn{padding:11px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-family:'Inter',sans-serif;font-weight:500;transition:transform .1s;min-height:44px;white-space:nowrap}
+.btn:active{transform:scale(.96)}
+.btn-primary{background:var(--charcoal);color:white}
+.btn-sage{background:var(--sage);color:white}
+.btn-outline{background:white;color:var(--charcoal);border:1px solid var(--border)}
+.btn-sm{padding:8px 12px;font-size:12px;min-height:38px}
+.btn-danger{background:var(--error);color:white}
+/* TABLE */
+.table-wrap{background:white;border:1px solid var(--border);border-radius:10px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:480px}
+thead{background:var(--sage-pale)}
+th{text-align:left;padding:11px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);font-weight:500;white-space:nowrap}
+td{padding:12px 14px;border-top:1px solid var(--border);font-size:13px;white-space:nowrap}
+.td-name{font-weight:500}
+.td-muted{color:#aaa;font-size:12px}
+/* BADGE */
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge-paid{background:#e6f4ea;color:#2e7d32}
+.badge-pending{background:#fff3e0;color:#e65100}
+.badge-overdue{background:#fdecea;color:#c62828}
+.badge-confirmed{background:#e8eaf6;color:#283593}
+.badge-cancelled{background:#f5f5f5;color:#757575}
+.badge-free{background:#e8f5e9;color:#1b5e20}
+.badge-full{background:#fce4ec;color:#880e4f}
+/* MODAL — bottom sheet on mobile */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:white;border-radius:20px 20px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:92vh;max-height:92dvh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,.2);animation:sheetUp .28s cubic-bezier(.2,.8,.2,1)}
+.modal::before{content:'';display:block;width:40px;height:4px;background:#ddd;border-radius:4px;margin:-8px auto 16px}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal h2{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;margin-bottom:18px}
+.form-group{margin-bottom:14px}
+label{display:block;font-size:11px;font-weight:500;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+input,select,textarea{width:100%;padding:13px;border:1px solid var(--border);border-radius:10px;font-size:16px;font-family:'Inter',sans-serif;color:var(--charcoal);background:var(--warm-white);outline:none;transition:border-color .15s;min-height:48px}
+input:focus,select:focus,textarea:focus{border-color:var(--sage);background:white}
+.modal-actions{display:flex;gap:10px;margin-top:20px}
+.modal-actions .btn{flex:1}
+/* FILTER */
+.filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filter-row input,.filter-row select{width:auto;padding:11px;font-size:16px;min-height:46px;border:1px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;background:var(--warm-white)}
+.filter-row input{flex:1;min-width:140px}
+/* EMPTY */
+.empty{text-align:center;padding:36px 20px;color:#bbb}
+.empty-icon{font-size:32px;margin-bottom:10px}
+/* ACTIONS */
+.actions-cell{display:flex;gap:6px}
+/* LOADING */
+.loading{text-align:center;padding:32px;color:var(--accent);font-size:13px}
+/* GRID 2col */
+.grid2{display:grid;grid-template-columns:1fr;gap:18px;margin-top:4px}
+/* CHARTS */
+.bar-chart{display:flex;align-items:flex-end;gap:10px;height:140px;padding-top:8px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.bar{width:100%;max-width:44px;background:linear-gradient(180deg,var(--sage),var(--sage-light));border-radius:6px 6px 0 0;min-height:4px;transition:height .4s ease;position:relative}
+.bar-val{font-size:13px;font-weight:600;color:var(--charcoal);font-family:'Cormorant Garamond',serif}
+.bar-lbl{font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.04em}
+.rank-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border)}
+.rank-row:first-child{border-top:none}
+.rank-num{width:22px;height:22px;border-radius:50%;background:var(--sage-pale);color:var(--sage);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rank-num.gold{background:#FBF0D9;color:#B8860B}
+.rank-label{flex:1;font-size:13px;font-weight:500}
+.rank-bar-wrap{flex:1.4;height:8px;background:var(--sage-pale);border-radius:4px;overflow:hidden}
+.rank-bar{height:100%;background:var(--sage);border-radius:4px;transition:width .4s ease}
+.rank-count{font-size:12px;color:var(--accent);font-weight:500;min-width:32px;text-align:right}
+
+/* TABLET & DESKTOP */
+@media(min-width:700px){
+  header{padding:18px 28px}
+  header h1{font-size:24px}
+  .tabs{padding:0 28px}
+  main{padding:24px 28px}
+  .stats{grid-template-columns:repeat(4,1fr);gap:14px}
+  .grid2{grid-template-columns:1fr 1fr}
+  table{min-width:0}
+  td{white-space:normal}
+  .modal-bg{align-items:center}
+  .modal{border-radius:14px;animation:none}
+  .modal::before{display:none}
+  .modal-actions{justify-content:flex-end}
+  .modal-actions .btn{flex:0 0 auto}
+  tr:hover td{background:var(--sage-pale)}
+  .btn-primary:hover{background:#444}
+  .btn-sage:hover{background:#7a8e7c}
+  .btn-outline:hover{border-color:var(--sage);color:var(--sage)}
+  .btn-danger:hover{background:#b06a5a}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MOEVA <span>PILATES</span> — Admin</h1>
+  <div class="header-right">
+    <span class="conn-status conn-err" id="connStatus">⚡ Ni povezave</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-page="dashboard" onclick="showPage('dashboard',this)">Pregled</div>
+  <div class="tab" data-page="clients" onclick="showPage('clients',this)">Stranke</div>
+  <div class="tab" data-page="slots" onclick="showPage('slots',this)">Termini</div>
+  <div class="tab" data-page="bookings" onclick="showPage('bookings',this)">Rezervacije</div>
+  <div class="tab" data-page="payments" onclick="showPage('payments',this)">Plačila</div>
+  <div class="tab" data-page="stats" onclick="showPage('stats',this)">📊 Statistika</div>
+  <div class="tab" data-page="setup" onclick="showPage('setup',this)">⚙ Nastavitve</div>
+</div>
+
+<main>
+
+<!-- SETUP -->
+<div class="page active" id="page-setup">
+  <div class="section-header"><div class="section-title">Nastavitve & Postavitev</div></div>
+  <div class="setup-banner">
+    <strong>🚀 Kako postaviti sistem (enkratna nastavitev)</strong>
+    <b>Korak 1</b> — Ustvari Google Sheet na <a href="https://sheets.new" target="_blank">sheets.new</a><br>
+    Iz URL-ja kopiraj ID (dolga koda med <code>/d/</code> in <code>/edit</code>)<br><br>
+    <b>Korak 2</b> — Odpri <a href="https://script.google.com" target="_blank">script.google.com</a> → Nov projekt<br>
+    Kopiraj vsebino datoteke <code>google-apps-script.js</code> in zamenjaj <code>TVOJ_SHEET_ID_SEM</code> s tvojim ID-jem<br><br>
+    <b>Korak 3</b> — V Apps Scriptu: <em>Zaženi → setupSheets()</em> (ustvari liste)<br>
+    Nato: <em>Objavi → Uvedi kot spletno aplikacijo</em> → Dostop: <em>Vsi</em> → Kopiraj URL<br><br>
+    <b>Korak 4</b> — Prilepi URL spodaj in klikni Shrani:
+    <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    <button class="btn btn-sage" onclick="saveApiUrl()" style="margin-top:4px">Shrani URL in testiraj</button>
+    <div id="testResult" style="margin-top:10px;font-size:13px"></div>
+  </div>
+
+  <div class="setup-banner" style="background:#f3f8f3;border-color:#c5d4c6;margin-top:16px">
+    <strong>📤 Booking link za stranke</strong>
+    Ko je sistem nastavljen, pošlji strankam to datoteko: <code>booking.html</code><br>
+    Ali jo naloži na GitHub Pages in jim pošlji link.<br><br>
+    V <code>booking.html</code> zamenjaj <code>APPS_SCRIPT_URL</code> z istim URL-jem kot zgoraj.
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page" id="page-dashboard">
+  <div class="stats">
+    <div class="stat-card"><div class="stat-label">Aktivne stranke</div><div class="stat-value" id="stat-clients">—</div></div>
+    <div class="stat-card"><div class="stat-label">Termini ta teden</div><div class="stat-value" id="stat-week">—</div></div>
+    <div class="stat-card"><div class="stat-label">Plačano ta mesec (€)</div><div class="stat-value green" id="stat-paid">—</div></div>
+    <div class="stat-card"><div class="stat-label">Neplačano (€)</div><div class="stat-value red" id="stat-unpaid">—</div></div>
+  </div>
+  <div class="grid2">
+    <div>
+      <div class="section-header"><div class="section-title">Prihajajoče rezervacije</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Stranka</th><th>Datum</th><th>Čas</th><th>Status</th></tr></thead><tbody id="dash-bookings"><tr><td colspan="4" class="loading">Nalagam...</td></tr></tbody></table></div>
+    </div>
+    <div>
+      <div class="section-header"><div class="section-title">Neplačani računi</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Stranka</th><th>Znesek</th><th>Rok</th></tr></thead><tbody id="dash-payments"><tr><td colspan="3" class="loading">Nalagam...</td></tr></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENTS -->
+<div class="page" id="page-clients">
+  <div class="section-header">
+    <div class="section-title">Stranke</div>
+    <button class="btn btn-primary" onclick="openModal('clientModal')">+ Nova stranka</button>
+  </div>
+  <div class="filter-row">
+    <input type="text" id="clientSearch" placeholder="Išči..." oninput="renderClients()">
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Ime</th><th>Telefon</th><th>Email</th><th>Paket</th><th>Opomba</th><th></th></tr></thead>
+    <tbody id="clientsTable"><tr><td colspan="6" class="loading">Nalagam...</td></tr></tbody>
+  </table></div>
+</div>
+
+<!-- SLOTS -->
+<div class="page" id="page-slots">
+  <div class="section-header">
+    <div class="section-title">Termini (tvoj urnik)</div>
+    <button class="btn btn-primary" onclick="openModal('slotModal')">+ Nov termin</button>
+  </div>
+  <div class="filter-row">
+    <input type="date" id="slotDateFilter" onchange="renderSlots()">
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('slotDateFilter').value='';renderSlots()">Vse</button>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Datum</th><th>Čas</th><th>Vrsta</th><th>Naziv</th><th>Mesta</th><th>Zasedenost</th><th></th></tr></thead>
+    <tbody id="slotsTable"><tr><td colspan="7" class="loading">Nalagam...</td></tr></tbody>
+  </table></div>
+</div>
+
+<!-- BOOKINGS -->
+<div class="page" id="page-bookings">
+  <div class="section-header"><div class="section-title">Rezervacije strank</div></div>
+  <div class="filter-row">
+    <input type="date" id="bookingDateFilter" onchange="renderBookings()">
+    <select id="bookingStatusFilter" onchange="renderBookings()">
+      <option value="">Vsi</option><option value="potrjena">Potrjena</option><option value="odpovedana">Odpovedana</option>
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('bookingDateFilter').value='';document.getElementById('bookingStatusFilter').value='';renderBookings()">Ponastavi</button>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Stranka</th><th>Email</th><th>Telefon</th><th>Datum rezervacije</th><th>Status</th><th></th></tr></thead>
+    <tbody id="bookingsTable"><tr><td colspan="6" class="loading">Nalagam...</td></tr></tbody>
+  </table></div>
+</div>
+
+<!-- PAYMENTS -->
+<div class="page" id="page-payments">
+  <div class="section-header">
+    <div class="section-title">Plačila</div>
+    <button class="btn btn-primary" onclick="openModal('paymentModal')">+ Novo plačilo</button>
+  </div>
+  <div class="filter-row">
+    <select id="paymentStatusFilter" onchange="renderPayments()">
+      <option value="">Vsi</option><option value="placano">Plačano</option><option value="caka">Čaka</option><option value="zamuda">Zamuda</option>
+    </select>
+    <input type="text" id="paymentSearch" placeholder="Išči stranko..." oninput="renderPayments()">
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Stranka</th><th>Opis</th><th>Znesek</th><th>Rok</th><th>Status</th><th></th></tr></thead>
+    <tbody id="paymentsTable"><tr><td colspan="6" class="loading">Nalagam...</td></tr></tbody>
+  </table></div>
+</div>
+
+<!-- STATISTIKA -->
+<div class="page" id="page-stats">
+  <div class="section-header"><div class="section-title">📊 Statistika</div></div>
+
+  <div class="stats" style="margin-bottom:18px">
+    <div class="stat-card"><div class="stat-label">Treningov ta mesec</div><div class="stat-value" id="st-month-trainings">—</div></div>
+    <div class="stat-card"><div class="stat-label">Skupaj rezervacij</div><div class="stat-value" id="st-total-bookings">—</div></div>
+    <div class="stat-card"><div class="stat-label">Zasedenost</div><div class="stat-value green" id="st-occupancy">—</div></div>
+    <div class="stat-card"><div class="stat-label">Odpovedi ta mesec</div><div class="stat-value red" id="st-cancellations">—</div></div>
+  </div>
+
+  <!-- Treningi po mesecih -->
+  <div class="stat-card" style="margin-bottom:16px">
+    <div class="stat-label" style="margin-bottom:14px">Treningi po mesecih (zadnjih 6)</div>
+    <div id="chart-months" class="bar-chart"><div class="loading">Nalagam...</div></div>
+  </div>
+
+  <div class="grid2">
+    <!-- Najbolj zasedeni termini -->
+    <div class="stat-card">
+      <div class="stat-label" style="margin-bottom:12px">Najbolj priljubljeni termini</div>
+      <div id="chart-popular"><div class="loading">Nalagam...</div></div>
+    </div>
+    <!-- Najbolj redne stranke -->
+    <div class="stat-card">
+      <div class="stat-label" style="margin-bottom:12px">Najbolj redne stranke</div>
+      <div id="chart-regulars"><div class="loading">Nalagam...</div></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- CLIENT MODAL -->
+<div class="modal-bg" id="clientModal">
+  <div class="modal">
+    <h2 id="clientModalTitle">Nova stranka</h2>
+    <input type="hidden" id="clientId">
+    <div class="form-group"><label>Ime in priimek *</label><input type="text" id="clientName" placeholder="Ana Novak"></div>
+    <div class="form-group"><label>Telefon</label><input type="text" id="clientPhone" placeholder="+386 ..."></div>
+    <div class="form-group"><label>Email</label><input type="email" id="clientEmail"></div>
+    <div class="form-group"><label>Paket</label>
+      <select id="clientPackage">
+        <option value="">— brez —</option>
+        <option value="1x tedensko">1x tedensko</option>
+        <option value="2x tedensko">2x tedensko</option>
+        <option value="3x tedensko">3x tedensko</option>
+        <option value="10 ur paket">10 ur paket</option>
+        <option value="Individualno">Individualno</option>
+        <option value="Mesečna naročnina">Mesečna naročnina</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Opomba</label><textarea id="clientNote" rows="2" placeholder="Poškodbe, posebnosti..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('clientModal')">Prekliči</button>
+      <button class="btn btn-primary" onclick="saveClient()">Shrani</button>
+    </div>
+  </div>
+</div>
+
+<!-- SLOT MODAL -->
+<div class="modal-bg" id="slotModal">
+  <div class="modal">
+    <h2 id="slotModalTitle">Nov termin</h2>
+    <input type="hidden" id="slotId">
+    <div class="form-group"><label>Datum *</label><input type="date" id="slotDate"></div>
+    <div class="form-group"><label>Čas *</label><input type="time" id="slotTime" value="09:00"></div>
+    <div class="form-group"><label>Vrsta treninga</label>
+      <select id="slotType">
+        <option value="Individualni">Individualni trening</option>
+        <option value="Skupinski">Skupinski trening</option>
+        <option value="Duo">Duo trening</option>
+        <option value="Online">Online trening</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Naziv (neobvezno)</label><input type="text" id="slotNaziv" placeholder="Npr. Pilates za začetnike"></div>
+    <div class="form-group"><label>Maks. število mest</label><input type="number" id="slotMesta" value="1" min="1" max="20"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('slotModal')">Prekliči</button>
+      <button class="btn btn-primary" onclick="saveSlot()">Shrani</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-bg" id="paymentModal">
+  <div class="modal">
+    <h2 id="paymentModalTitle">Novo plačilo</h2>
+    <input type="hidden" id="paymentId">
+    <div class="form-group"><label>Stranka *</label><select id="paymentClient"></select></div>
+    <div class="form-group"><label>Opis</label><input type="text" id="paymentDesc" placeholder="Mesečna naročnina junij"></div>
+    <div class="form-group"><label>Znesek (€) *</label><input type="number" id="paymentAmount" placeholder="60" min="0" step="0.01"></div>
+    <div class="form-group"><label>Rok plačila</label><input type="date" id="paymentDue"></div>
+    <div class="form-group"><label>Status</label>
+      <select id="paymentStatus">
+        <option value="caka">Čaka plačilo</option>
+        <option value="placano">Plačano</option>
+        <option value="zamuda">Zamuda</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('paymentModal')">Prekliči</button>
+      <button class="btn btn-primary" onclick="savePayment()">Shrani</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────
+let API_URL = localStorage.getItem('pilates_api_url') || '';
+if(API_URL) document.getElementById('apiUrlInput').value = API_URL;
+
+// ── LOCAL CACHE ───────────────────────────────────────────────
+let clients=[], slots=[], bookings=[], payments=[];
+
+// ── API ───────────────────────────────────────────────────────
+async function api(action, params={}) {
+  if(!API_URL) return null;
+  const url = API_URL + '?action=' + action + Object.entries(params).map(([k,v])=>`&${k}=${encodeURIComponent(v)}`).join('');
+  const r = await fetch(url);
+  return r.json();
+}
+async function apiPost(data) {
+  if(!API_URL) return null;
+  const r = await fetch(API_URL, {method:'POST', body:JSON.stringify(data)});
+  return r.json();
+}
+
+async function saveApiUrl() {
+  const url = document.getElementById('apiUrlInput').value.trim();
+  if(!url) return;
+  API_URL = url;
+  localStorage.setItem('pilates_api_url', url);
+  document.getElementById('testResult').textContent = 'Testiram...';
+  try {
+    const r = await fetch(url + '?action=getDashboard');
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    document.getElementById('testResult').innerHTML = '<span style="color:#2e7d32">✓ Povezava uspešna! Preklopi na Pregled.</span>';
+    document.getElementById('connStatus').textContent = '✓ Povezano';
+    document.getElementById('connStatus').className = 'conn-status conn-ok';
+  } catch(e) {
+    document.getElementById('testResult').innerHTML = '<span style="color:#c62828">✗ Napaka: ' + e.message + '</span>';
+  }
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  const loaders = {
+    dashboard: loadDashboard,
+    clients: loadClients,
+    slots: loadSlots,
+    bookings: loadBookings,
+    payments: loadPayments,
+    stats: loadStats
+  };
+  if(loaders[name]) loaders[name]();
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if(id==='paymentModal') populateClientSelect();
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  resetForms();
+}
+document.querySelectorAll('.modal-bg').forEach(bg=>{
+  bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('open');});
+});
+function resetForms() {
+  document.querySelectorAll('.modal input:not([type=hidden]), .modal select, .modal textarea').forEach(el=>{
+    if(el.tagName==='SELECT') el.selectedIndex=0;
+    else el.value='';
+  });
+  document.getElementById('slotTime').value='09:00';
+  document.getElementById('slotMesta').value='1';
+  document.getElementById('clientModalTitle').textContent='Nova stranka';
+  document.getElementById('slotModalTitle').textContent='Nov termin';
+  document.getElementById('paymentModalTitle').textContent='Novo plačilo';
+}
+function populateClientSelect() {
+  document.getElementById('paymentClient').innerHTML =
+    clients.map(c=>`<option value="${c.id}">${c.ime}</option>`).join('');
+}
+
+// ── CLIENTS ───────────────────────────────────────────────────
+async function loadClients() {
+  const data = await api('getClients');
+  if(!data) { noApi('clientsTable',6); return; }
+  clients = data;
+  renderClients();
+}
+function renderClients() {
+  const q = (document.getElementById('clientSearch')?.value||'').toLowerCase();
+  const list = clients.filter(c=>(c.ime||'').toLowerCase().includes(q));
+  const tbody = document.getElementById('clientsTable');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">🧘</div><p>Ni strank.</p></div></td></tr>`;return;}
+  tbody.innerHTML = list.map(c=>`<tr>
+    <td class="td-name">${c.ime}</td>
+    <td>${c.telefon||'<span class="td-muted">—</span>'}</td>
+    <td>${c.email||'<span class="td-muted">—</span>'}</td>
+    <td>${c.paket?`<span class="badge badge-confirmed">${c.paket}</span>`:'<span class="td-muted">—</span>'}</td>
+    <td class="td-muted">${c.opomba||'—'}</td>
+    <td><div class="actions-cell">
+      <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')">Uredi</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">✕</button>
+    </div></td>
+  </tr>`).join('');
+}
+async function saveClient() {
+  const ime = document.getElementById('clientName').value.trim();
+  if(!ime){alert('Ime je obvezno');return;}
+  const id = document.getElementById('clientId').value;
+  const data = {
+    id, ime,
+    telefon: document.getElementById('clientPhone').value.trim(),
+    email: document.getElementById('clientEmail').value.trim(),
+    paket: document.getElementById('clientPackage').value,
+    opomba: document.getElementById('clientNote').value.trim()
+  };
+  const r = await apiPost({action: id?'updateClient':'addClient', ...data});
+  if(r?.error){alert(r.error);return;}
+  closeModal('clientModal'); loadClients();
+}
+function editClient(id) {
+  const c = clients.find(x=>x.id===id);
+  document.getElementById('clientModalTitle').textContent='Uredi stranko';
+  document.getElementById('clientId').value=c.id;
+  document.getElementById('clientName').value=c.ime||'';
+  document.getElementById('clientPhone').value=c.telefon||'';
+  document.getElementById('clientEmail').value=c.email||'';
+  document.getElementById('clientPackage').value=c.paket||'';
+  document.getElementById('clientNote').value=c.opomba||'';
+  openModal('clientModal');
+}
+async function deleteClient(id) {
+  if(!confirm('Izbriši stranko?'))return;
+  await apiPost({action:'deleteClient',id});
+  loadClients();
+}
+
+// ── SLOTS ─────────────────────────────────────────────────────
+async function loadSlots() {
+  const data = await api('getSlots');
+  if(!data){noApi('slotsTable',7);return;}
+  slots = data;
+  renderSlots();
+}
+function renderSlots() {
+  const df = document.getElementById('slotDateFilter')?.value;
+  let list = [...slots].filter(s=>s.aktiven!=='false'&&s.aktiven!==false);
+  if(df) list = list.filter(s=>s.datum===df);
+  list.sort((a,b)=>(a.datum+a.cas).localeCompare(b.datum+b.cas));
+  const tbody = document.getElementById('slotsTable');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📅</div><p>Ni terminov.</p></div></td></tr>`;return;}
+  tbody.innerHTML = list.map(s=>{
+    const d = new Date(s.datum);
+    const df2 = d.toLocaleDateString('sl-SI',{weekday:'short',day:'numeric',month:'short'});
+    const full = parseInt(s.rezervirano||0)>=parseInt(s.max_mest||1);
+    return `<tr>
+      <td>${df2}</td><td>${s.cas||'—'}</td>
+      <td>${s.tip||'—'}</td><td>${s.naziv||'<span class="td-muted">—</span>'}</td>
+      <td>${s.max_mest||1}</td>
+      <td><span class="badge ${full?'badge-full':'badge-free'}">${s.rezervirano||0}/${s.max_mest||1} ${full?'🔴 Zaseden':'🟢 Prosto'}</span></td>
+      <td><div class="actions-cell">
+        <button class="btn btn-outline btn-sm" onclick="editSlot('${s.id}')">Uredi</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSlot('${s.id}')">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+async function saveSlot() {
+  const datum=document.getElementById('slotDate').value;
+  const cas=document.getElementById('slotTime').value;
+  if(!datum){alert('Datum je obvezen');return;}
+  const id=document.getElementById('slotId').value;
+  const data={
+    id,datum,cas,
+    tip:document.getElementById('slotType').value,
+    naziv:document.getElementById('slotNaziv').value.trim(),
+    max_mest:document.getElementById('slotMesta').value,
+    aktiven:true
+  };
+  const r=await apiPost({action:id?'updateSlot':'addSlot',...data});
+  if(r?.error){alert(r.error);return;}
+  closeModal('slotModal');loadSlots();
+}
+function editSlot(id) {
+  const s=slots.find(x=>x.id===id);
+  document.getElementById('slotModalTitle').textContent='Uredi termin';
+  document.getElementById('slotId').value=s.id;
+  document.getElementById('slotDate').value=s.datum||'';
+  document.getElementById('slotTime').value=s.cas||'09:00';
+  document.getElementById('slotType').value=s.tip||'Individualni';
+  document.getElementById('slotNaziv').value=s.naziv||'';
+  document.getElementById('slotMesta').value=s.max_mest||1;
+  openModal('slotModal');
+}
+async function deleteSlot(id) {
+  if(!confirm('Izbriši termin?'))return;
+  await apiPost({action:'deleteSlot',id});loadSlots();
+}
+
+// ── BOOKINGS ──────────────────────────────────────────────────
+async function loadBookings() {
+  const [b,s]=await Promise.all([api('getBookings'),api('getSlots')]);
+  if(!b){noApi('bookingsTable',6);return;}
+  bookings=b; slots=s||slots;
+  renderBookings();
+}
+function getSlotInfo(slotId) {
+  const s=slots.find(x=>x.id===slotId);
+  if(!s)return'—';
+  const d=new Date(s.datum);
+  return d.toLocaleDateString('sl-SI',{weekday:'short',day:'numeric',month:'short'})+' '+s.cas;
+}
+function renderBookings() {
+  const df=document.getElementById('bookingDateFilter')?.value;
+  const sf=document.getElementById('bookingStatusFilter')?.value;
+  let list=[...bookings];
+  if(sf)list=list.filter(b=>b.status===sf);
+  list.sort((a,b)=>(a.datum_rezervacije||'').localeCompare(b.datum_rezervacije||''));
+  const tbody=document.getElementById('bookingsTable');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><p>Ni rezervacij.</p></div></td></tr>`;return;}
+  const now = new Date();
+  tbody.innerHTML=list.map(b=>{
+    const badge=b.status==='potrjena'?'badge-confirmed':'badge-cancelled';
+    const label=b.status==='potrjena'?'Potrjena':'Odpovedana';
+    // Preveri 4h pravilo
+    const slot = slots.find(s=>s.id===b.slot_id);
+    let cancelBtn = '';
+    if(b.status==='potrjena') {
+      if(slot && slot.datum && slot.cas) {
+        const slotDT = new Date(slot.datum + 'T' + slot.cas + ':00');
+        const diffH = (slotDT - now) / (1000*60*60);
+        if(diffH < 4) {
+          cancelBtn = `<span class="td-muted" title="Manj kot 4h do termina">🔒 Zaklenjeno</span>`;
+        } else {
+          cancelBtn = `<button class="btn btn-outline btn-sm" onclick="cancelBooking('${b.id}')">Odpovej</button>`;
+        }
+      } else {
+        cancelBtn = `<button class="btn btn-outline btn-sm" onclick="cancelBooking('${b.id}')">Odpovej</button>`;
+      }
+    }
+    return `<tr>
+      <td class="td-name">${b.ime||'—'}</td>
+      <td>${b.email||'<span class="td-muted">—</span>'}</td>
+      <td>${b.telefon||'<span class="td-muted">—</span>'}</td>
+      <td>${getSlotInfo(b.slot_id)}</td>
+      <td><span class="badge ${badge}">${label}</span></td>
+      <td>${cancelBtn}</td>
+    </tr>`;
+  }).join('');
+}
+async function cancelBooking(id) {
+  if(!confirm('Odpovej rezervacijo?'))return;
+  const r = await apiPost({action:'cancelBooking',id});
+  if(r?.error){ alert('⚠ ' + r.error); return; }
+  loadBookings();
+}
+
+// ── PAYMENTS ──────────────────────────────────────────────────
+async function loadPayments() {
+  const [p,c]=await Promise.all([api('getPayments'),api('getClients')]);
+  if(!p){noApi('paymentsTable',6);return;}
+  payments=p; clients=c||clients;
+  renderPayments();
+}
+function clientName(id){return clients.find(c=>c.id===id)?.ime||'—';}
+function renderPayments() {
+  const sf=document.getElementById('paymentStatusFilter')?.value;
+  const q=(document.getElementById('paymentSearch')?.value||'').toLowerCase();
+  let list=[...payments];
+  if(sf)list=list.filter(p=>p.status===sf);
+  if(q)list=list.filter(p=>clientName(p.client_id).toLowerCase().includes(q));
+  list.sort((a,b)=>(a.rok||'').localeCompare(b.rok||''));
+  const tbody=document.getElementById('paymentsTable');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">💶</div><p>Ni plačil.</p></div></td></tr>`;return;}
+  const bm={placano:'badge-paid',caka:'badge-pending',zamuda:'badge-overdue'};
+  const lm={placano:'Plačano',caka:'Čaka',zamuda:'Zamuda'};
+  tbody.innerHTML=list.map(p=>`<tr>
+    <td class="td-name">${clientName(p.client_id)}</td>
+    <td>${p.opis||'<span class="td-muted">—</span>'}</td>
+    <td><strong>${parseFloat(p.znesek||0).toFixed(2)} €</strong></td>
+    <td>${p.rok?new Date(p.rok).toLocaleDateString('sl-SI'):'—'}</td>
+    <td><span class="badge ${bm[p.status]||'badge-pending'}">${lm[p.status]||p.status}</span></td>
+    <td><div class="actions-cell">
+      ${p.status!=='placano'?`<button class="btn btn-sage btn-sm" onclick="markPaid('${p.id}')">Plačano ✓</button>`:''}
+      <button class="btn btn-outline btn-sm" onclick="editPayment('${p.id}')">Uredi</button>
+      <button class="btn btn-danger btn-sm" onclick="delPayment('${p.id}')">✕</button>
+    </div></td>
+  </tr>`).join('');
+}
+async function savePayment() {
+  const cid=document.getElementById('paymentClient').value;
+  const amt=parseFloat(document.getElementById('paymentAmount').value);
+  if(!cid||isNaN(amt)){alert('Stranka in znesek sta obvezna');return;}
+  const id=document.getElementById('paymentId').value;
+  const data={id,client_id:cid,opis:document.getElementById('paymentDesc').value.trim(),
+    znesek:amt,rok:document.getElementById('paymentDue').value,
+    status:document.getElementById('paymentStatus').value};
+  const r=await apiPost({action:id?'updatePayment':'addPayment',...data});
+  if(r?.error){alert(r.error);return;}
+  closeModal('paymentModal');loadPayments();
+}
+function editPayment(id) {
+  const p=payments.find(x=>x.id===id);
+  populateClientSelect();
+  document.getElementById('paymentModalTitle').textContent='Uredi plačilo';
+  document.getElementById('paymentId').value=p.id;
+  document.getElementById('paymentClient').value=p.client_id;
+  document.getElementById('paymentDesc').value=p.opis||'';
+  document.getElementById('paymentAmount').value=p.znesek;
+  document.getElementById('paymentDue').value=p.rok||'';
+  document.getElementById('paymentStatus').value=p.status;
+  openModal('paymentModal');
+}
+async function markPaid(id) {
+  const p=payments.find(x=>x.id===id);
+  await apiPost({action:'updatePayment',...p,status:'placano'});
+  loadPayments();
+}
+async function delPayment(id) {
+  if(!confirm('Izbriši?'))return;
+  await apiPost({action:'deletePayment',id});loadPayments();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+async function loadDashboard() {
+  const [dash,b,p,c,s]=await Promise.all([
+    api('getDashboard'),api('getBookings'),api('getPayments'),
+    api('getClients'),api('getSlots')
+  ]);
+  if(!dash){document.getElementById('stat-clients').textContent='?';return;}
+  clients=c||[]; bookings=b||[]; payments=p||[]; slots=s||[];
+  document.getElementById('stat-clients').textContent=dash.stevilo_strank||0;
+  document.getElementById('stat-week').textContent=dash.termini_teden||0;
+  document.getElementById('stat-paid').textContent=(dash.placano_mesec||0).toFixed(0);
+  document.getElementById('stat-unpaid').textContent=(dash.neplacano||0).toFixed(0);
+  document.getElementById('connStatus').textContent='✓ Povezano';
+  document.getElementById('connStatus').className='conn-status conn-ok';
+
+  // Upcoming
+  const today=new Date().toISOString().slice(0,10);
+  const upcoming=(bookings||[]).filter(b=>b.status==='potrjena').slice(0,7);
+  const db=document.getElementById('dash-bookings');
+  db.innerHTML=upcoming.length?upcoming.map(b=>{
+    const si=getSlotInfo(b.slot_id);
+    return `<tr><td class="td-name">${b.ime}</td><td colspan="2">${si}</td><td><span class="badge badge-confirmed">Potrjena</span></td></tr>`;
+  }).join(''):'<tr><td colspan="4" class="td-muted" style="text-align:center;padding:20px">Ni prihajajoč rezervacij</td></tr>';
+
+  const unpaid=(payments||[]).filter(p=>p.status!=='placano').slice(0,7);
+  const dp=document.getElementById('dash-payments');
+  dp.innerHTML=unpaid.length?unpaid.map(p=>{
+    const due=p.rok?new Date(p.rok).toLocaleDateString('sl-SI'):'—';
+    return `<tr><td class="td-name">${clientName(p.client_id)}</td><td><strong>${parseFloat(p.znesek||0).toFixed(2)} €</strong></td><td>${due}</td></tr>`;
+  }).join(''):'<tr><td colspan="3" class="td-muted" style="text-align:center;padding:20px">Vsa plačila urejena ✓</td></tr>';
+}
+
+function noApi(tbodyId, cols) {
+  document.getElementById(tbodyId).innerHTML=`<tr><td colspan="${cols}" style="text-align:center;padding:24px;color:#c17a6a">⚠ Najprej nastavi API URL v <strong>Nastavitvah</strong></td></tr>`;
+}
+
+// ── STATISTIKA ────────────────────────────────────────────────
+async function loadStats() {
+  const [b,s,c] = await Promise.all([api('getBookings'),api('getSlots'),api('getClients')]);
+  if(!b){ document.getElementById('st-month-trainings').textContent='?'; return; }
+  bookings=b||[]; slots=s||[]; clients=c||[];
+
+  const MONTHS_SL=['jan','feb','mar','apr','maj','jun','jul','avg','sep','okt','nov','dec'];
+  const now=new Date();
+  const thisMonth=now.toISOString().slice(0,7);
+
+  // Slot lookup
+  const slotMap={}; slots.forEach(x=>slotMap[x.id]=x);
+
+  const confirmed=bookings.filter(x=>x.status==='potrjena');
+  const cancelled=bookings.filter(x=>x.status==='odpovedana');
+
+  // Treningi ta mesec (termini z vsaj 1 potrjeno rezervacijo)
+  const monthSlots=slots.filter(x=>x.datum&&x.datum.slice(0,7)===thisMonth);
+  const monthTrainings=monthSlots.filter(sl=>confirmed.some(bk=>bk.slot_id===sl.id)).length;
+  document.getElementById('st-month-trainings').textContent=monthTrainings;
+
+  // Skupaj rezervacij
+  document.getElementById('st-total-bookings').textContent=confirmed.length;
+
+  // Zasedenost (povprečje % zasedenih mest na termin)
+  let occSum=0, occN=0;
+  slots.forEach(sl=>{
+    const cnt=confirmed.filter(bk=>bk.slot_id===sl.id).length;
+    const max=parseInt(sl.max_mest||1);
+    if(max>0){ occSum+=(cnt/max); occN++; }
+  });
+  const occPct=occN?Math.round(occSum/occN*100):0;
+  document.getElementById('st-occupancy').textContent=occPct+'%';
+
+  // Odpovedi ta mesec
+  const monthCancel=cancelled.filter(bk=>{
+    const sl=slotMap[bk.slot_id];
+    return sl&&sl.datum&&sl.datum.slice(0,7)===thisMonth;
+  }).length;
+  document.getElementById('st-cancellations').textContent=monthCancel;
+
+  // ── Graf: treningi po mesecih (zadnjih 6) ──
+  const monthCounts={};
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const key=d.toISOString().slice(0,7);
+    monthCounts[key]={label:MONTHS_SL[d.getMonth()],count:0};
+  }
+  confirmed.forEach(bk=>{
+    const sl=slotMap[bk.slot_id];
+    if(sl&&sl.datum){ const key=sl.datum.slice(0,7); if(monthCounts[key]) monthCounts[key].count++; }
+  });
+  const monthArr=Object.values(monthCounts);
+  const maxCount=Math.max(...monthArr.map(m=>m.count),1);
+  document.getElementById('chart-months').innerHTML=monthArr.map(m=>`
+    <div class="bar-col">
+      <div class="bar-val">${m.count}</div>
+      <div class="bar" style="height:${Math.max(4,m.count/maxCount*100)}%"></div>
+      <div class="bar-lbl">${m.label}</div>
+    </div>`).join('');
+
+  // ── Najbolj priljubljeni termini (po času) ──
+  const timeCounts={};
+  confirmed.forEach(bk=>{
+    const sl=slotMap[bk.slot_id];
+    if(sl&&sl.cas){ const k=sl.cas+' · '+(sl.tip||''); timeCounts[k]=(timeCounts[k]||0)+1; }
+  });
+  const popular=Object.entries(timeCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxPop=Math.max(...popular.map(p=>p[1]),1);
+  document.getElementById('chart-popular').innerHTML=popular.length?popular.map(([k,v],i)=>`
+    <div class="rank-row">
+      <div class="rank-num${i===0?' gold':''}">${i+1}</div>
+      <div class="rank-label">${k}</div>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${v/maxPop*100}%"></div></div>
+      <div class="rank-count">${v}×</div>
+    </div>`).join(''):'<div class="td-muted" style="padding:8px 0">Ni podatkov</div>';
+
+  // ── Najbolj redne stranke ──
+  const clientCounts={};
+  confirmed.forEach(bk=>{
+    const key=bk.ime||bk.email||'—';
+    clientCounts[key]=(clientCounts[key]||0)+1;
+  });
+  const regulars=Object.entries(clientCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxReg=Math.max(...regulars.map(r=>r[1]),1);
+  document.getElementById('chart-regulars').innerHTML=regulars.length?regulars.map(([k,v],i)=>`
+    <div class="rank-row">
+      <div class="rank-num${i===0?' gold':''}">${i+1}</div>
+      <div class="rank-label">${k}</div>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${v/maxReg*100}%"></div></div>
+      <div class="rank-count">${v}×</div>
+    </div>`).join(''):'<div class="td-muted" style="padding:8px 0">Ni podatkov</div>';
+}
+</script>
+</body>
+</html>
