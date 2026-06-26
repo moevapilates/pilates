@@ -135,6 +135,41 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage);background:whit
 </head>
 <body>
 
+<!-- ZAKLEP Z GESLOM -->
+<div id="lockScreen" style="position:fixed;inset:0;z-index:9999;background:var(--charcoal);display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="background:white;border-radius:16px;padding:36px 28px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="width:64px;height:64px;border-radius:50%;background:var(--sage);margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:30px;color:white;border:3px solid var(--sage-light)">M</div>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400;margin-bottom:6px">MOEVA PILATES</h2>
+    <p style="font-size:13px;color:var(--accent);margin-bottom:22px">Vnesite geslo za dostop</p>
+    <input type="password" id="lockPassword" placeholder="Geslo" autocomplete="current-password"
+      style="width:100%;padding:13px;border:1px solid var(--border);border-radius:10px;font-size:16px;font-family:'Inter',sans-serif;outline:none;text-align:center;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')checkPassword()">
+    <button onclick="checkPassword()" style="width:100%;padding:14px;border-radius:10px;border:none;background:var(--charcoal);color:white;font-size:15px;font-family:'Inter',sans-serif;font-weight:500;cursor:pointer;min-height:50px">Odkleni →</button>
+    <p id="lockError" style="font-size:13px;color:var(--error);margin-top:12px;display:none">Napačno geslo. Poskusite znova.</p>
+  </div>
+</div>
+
+<script>
+// ── ZAŠČITA Z GESLOM ──────────────────────────────────────────
+const ADMIN_PASSWORD = 'Moeva.Pilates2026';
+function checkPassword(){
+  const val = document.getElementById('lockPassword').value;
+  if(val === ADMIN_PASSWORD){
+    document.getElementById('lockScreen').style.display='none';
+    try{ sessionStorage.setItem('moeva_unlocked','1'); }catch(e){}
+  } else {
+    document.getElementById('lockError').style.display='block';
+    document.getElementById('lockPassword').value='';
+  }
+}
+// Ostani odklenjen dokler je zavihek odprt
+try{
+  if(sessionStorage.getItem('moeva_unlocked')==='1'){
+    document.getElementById('lockScreen').style.display='none';
+  }
+}catch(e){}
+</script>
+
 <header>
   <h1>MOEVA <span>PILATES</span> — Admin</h1>
   <div class="header-right">
