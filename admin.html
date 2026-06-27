@@ -684,7 +684,7 @@ function renderClients() {
     if(ns >= 3) opozorilo = `<span class="badge badge-overdue" title="${ns} neprihodov">⚠ ${ns}× ni prišla</span>`;
     else if(ns > 0) opozorilo = `<span class="td-muted">${ns}× ni prišla</span>`;
     // Opozori če manjka kontakt
-    const niKontakta = !((c.telefon||'').trim()) && !((c.email||'').trim());
+    const niKontakta = !((c.telefon||'').toString().trim()) && !((c.email||'').toString().trim());
     const kontaktOpozorilo = niKontakta ? `<span class="badge badge-overdue" title="Brez kontakta ne more rezervirati">⚠ ni kontakta</span>` : '';
     return `<tr${niKontakta?' style="background:#FDF3F1"':''}>
     <td class="td-name">${c.ime}${opozorilo?' '+opozorilo:''}${kontaktOpozorilo?' '+kontaktOpozorilo:''}</td>
@@ -719,7 +719,8 @@ async function saveClient() {
   closeModal('clientModal'); loadClients();
 }
 function editClient(id) {
-  const c = clients.find(x=>x.id===id);
+  const c = clients.find(x=>String(x.id)===String(id));
+  if(!c){alert('Stranka ni najdena');return;}
   document.getElementById('clientModalTitle').textContent='Uredi stranko';
   document.getElementById('clientId').value=c.id;
   document.getElementById('clientName').value=c.ime||'';
@@ -781,7 +782,7 @@ async function saveSlot() {
   closeModal('slotModal');loadSlots();
 }
 function editSlot(id) {
-  const s=slots.find(x=>x.id===id);
+  const s=slots.find(x=>String(x.id)===String(id));
   document.getElementById('slotModalTitle').textContent='Uredi termin';
   document.getElementById('slotId').value=s.id;
   setCalValue('slotDate', s.datum||'');
@@ -804,7 +805,7 @@ async function loadBookings() {
   renderBookings();
 }
 function getSlotInfo(slotId) {
-  const s=slots.find(x=>x.id===slotId);
+  const s=slots.find(x=>String(x.id)===String(slotId));
   if(!s)return'—';
   return fmtDMYDan(s.datum)+' '+s.cas;
 }
@@ -826,7 +827,7 @@ function renderBookings() {
   tbody.innerHTML=list.map(b=>{
     const badge=b.status==='potrjena'?'badge-confirmed':'badge-cancelled';
     const label=b.status==='potrjena'?'Potrjena':'Odpovedana';
-    const slot = slots.find(s=>s.id===b.slot_id);
+    const slot = slots.find(s=>String(s.id)===String(b.slot_id));
     let cancelBtn = '';
     let prisotnostBtn = '';
     if(b.status==='potrjena') {
@@ -914,7 +915,7 @@ async function savePayment() {
   closeModal('paymentModal');loadPayments();
 }
 function editPayment(id) {
-  const p=payments.find(x=>x.id===id);
+  const p=payments.find(x=>String(x.id)===String(id));
   populateClientSelect();
   document.getElementById('paymentModalTitle').textContent='Uredi plačilo';
   document.getElementById('paymentId').value=p.id;
@@ -926,7 +927,7 @@ function editPayment(id) {
   openModal('paymentModal');
 }
 async function markPaid(id) {
-  const p=payments.find(x=>x.id===id);
+  const p=payments.find(x=>String(x.id)===String(id));
   await apiPost({action:'updatePayment',...p,status:'placano'});
   loadPayments();
 }
