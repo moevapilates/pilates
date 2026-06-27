@@ -133,6 +133,25 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage);background:whit
   .btn-outline:hover{border-color:var(--sage);color:var(--sage)}
   .btn-danger:hover{background:#b06a5a}
 }
+/* LASTEN KOLEDAR (ponedeljek prvi) */
+.date-field{position:relative}
+.date-field input[readonly]{cursor:pointer;background:white}
+.cal-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:500;background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.18);padding:14px;width:280px;display:none}
+.cal-pop.open{display:block}
+.cal-pop-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-pop-head button{background:none;border:none;font-size:18px;cursor:pointer;color:var(--accent);padding:4px 10px;border-radius:8px;min-height:36px}
+.cal-pop-head button:hover{background:var(--sage-pale)}
+.cal-pop-title{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:500;color:var(--charcoal)}
+.cal-pop-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-pop-dow{font-size:10px;text-transform:uppercase;color:var(--accent);text-align:center;padding:4px 0;font-weight:600}
+.cal-pop-day{text-align:center;padding:7px 0;font-size:13px;cursor:pointer;border-radius:8px;color:var(--charcoal);border:none;background:none;min-height:34px}
+.cal-pop-day:hover{background:var(--sage-pale)}
+.cal-pop-day.other{color:#ccc}
+.cal-pop-day.today{font-weight:700;color:var(--sage)}
+.cal-pop-day.selected{background:var(--sage);color:white;font-weight:600}
+.cal-pop-day.empty{cursor:default}
+.cal-pop-foot{display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.cal-pop-foot button{background:none;border:none;font-size:12px;color:var(--sage);cursor:pointer;padding:4px 8px}
 </style>
 </head>
 <body>
@@ -258,8 +277,10 @@ try{
     <button class="btn btn-primary" onclick="openModal('slotModal')">+ Nov termin</button>
   </div>
   <div class="filter-row">
-    <input type="date" id="slotDateFilter" onchange="renderSlots()">
-    <button class="btn btn-outline btn-sm" onclick="document.getElementById('slotDateFilter').value='';renderSlots()">Vse</button>
+    <div class="date-field" style="display:inline-block">
+      <input type="text" id="slotDateFilter" readonly placeholder="dd/mm/yyyy" onclick="openCal(this)" onchange="renderSlots()" style="width:140px">
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="clearCal('slotDateFilter');renderSlots()">Vse</button>
   </div>
   <div class="table-wrap"><table>
     <thead><tr><th>Datum</th><th>Čas</th><th>Vrsta</th><th>Naziv</th><th>Mesta</th><th>Zasedenost</th><th></th></tr></thead>
@@ -271,11 +292,13 @@ try{
 <div class="page" id="page-bookings">
   <div class="section-header"><div class="section-title">Rezervacije strank</div></div>
   <div class="filter-row">
-    <input type="date" id="bookingDateFilter" onchange="renderBookings()">
+    <div class="date-field" style="display:inline-block">
+      <input type="text" id="bookingDateFilter" readonly placeholder="dd/mm/yyyy" onclick="openCal(this)" onchange="renderBookings()" style="width:140px">
+    </div>
     <select id="bookingStatusFilter" onchange="renderBookings()">
       <option value="">Vsi</option><option value="potrjena">Potrjena</option><option value="odpovedana">Odpovedana</option>
     </select>
-    <button class="btn btn-outline btn-sm" onclick="document.getElementById('bookingDateFilter').value='';document.getElementById('bookingStatusFilter').value='';renderBookings()">Ponastavi</button>
+    <button class="btn btn-outline btn-sm" onclick="clearCal('bookingDateFilter');document.getElementById('bookingStatusFilter').value='';renderBookings()">Ponastavi</button>
   </div>
   <div class="table-wrap"><table>
     <thead><tr><th>Stranka</th><th>Email</th><th>Telefon</th><th>Termin</th><th>Status</th><th>Prisotnost</th><th></th></tr></thead>
@@ -369,7 +392,11 @@ try{
   <div class="modal">
     <h2 id="slotModalTitle">Nov termin</h2>
     <input type="hidden" id="slotId">
-    <div class="form-group"><label>Datum *</label><input type="date" id="slotDate"></div>
+    <div class="form-group"><label>Datum *</label>
+      <div class="date-field">
+        <input type="text" id="slotDate" readonly placeholder="dd/mm/yyyy" onclick="openCal(this)">
+      </div>
+    </div>
     <div class="form-group"><label>Čas *</label><input type="time" id="slotTime" value="09:00"></div>
     <div class="form-group"><label>Vrsta treninga</label>
       <select id="slotType">
@@ -396,7 +423,11 @@ try{
     <div class="form-group"><label>Stranka *</label><select id="paymentClient"></select></div>
     <div class="form-group"><label>Opis</label><input type="text" id="paymentDesc" placeholder="Mesečna naročnina junij"></div>
     <div class="form-group"><label>Znesek (€) *</label><input type="number" id="paymentAmount" placeholder="60" min="0" step="0.01"></div>
-    <div class="form-group"><label>Rok plačila</label><input type="date" id="paymentDue"></div>
+    <div class="form-group"><label>Rok plačila</label>
+      <div class="date-field">
+        <input type="text" id="paymentDue" readonly placeholder="dd/mm/yyyy" onclick="openCal(this)">
+      </div>
+    </div>
     <div class="form-group"><label>Status</label>
       <select id="paymentStatus">
         <option value="caka">Čaka plačilo</option>
@@ -465,6 +496,99 @@ function fmtDMYDan(datum){
   return `${DNI_SL[d.getDay()]} ${fmtDMY(datum)}`;
 }
 
+// ── LASTEN KOLEDAR (ponedeljek prvi) ─────────────────────────
+let calTarget=null, calYear=0, calMonth=0;
+const CAL_MESECI=['Januar','Februar','Marec','April','Maj','Junij','Julij','Avgust','September','Oktober','November','December'];
+const CAL_DOW=['Pon','Tor','Sre','Čet','Pet','Sob','Ned'];
+
+function openCal(input){
+  calTarget=input;
+  // Zapri ostale
+  document.querySelectorAll('.cal-pop').forEach(p=>p.remove());
+  // Določi začetni mesec (iz obstoječe vrednosti ali danes)
+  const iso=input.dataset.iso;
+  let base=iso?new Date(iso+'T00:00:00'):new Date();
+  calYear=base.getFullYear(); calMonth=base.getMonth();
+  const pop=document.createElement('div');
+  pop.className='cal-pop open';
+  input.parentNode.appendChild(pop);
+  renderCal(pop);
+  // Zapri ob kliku zunaj
+  setTimeout(()=>{
+    document.addEventListener('click', closeCalOutside);
+  },10);
+}
+function closeCalOutside(e){
+  if(!e.target.closest('.cal-pop') && !e.target.closest('.date-field input')){
+    document.querySelectorAll('.cal-pop').forEach(p=>p.remove());
+    document.removeEventListener('click', closeCalOutside);
+  }
+}
+function renderCal(pop){
+  const danes=new Date(); danes.setHours(0,0,0,0);
+  const sel=calTarget.dataset.iso;
+  // Prvi dan v mesecu, kateri dan v tednu (ponedeljek=0)
+  const prvi=new Date(calYear,calMonth,1);
+  let zacetek=prvi.getDay()-1; if(zacetek<0)zacetek=6; // ned=6
+  const dniVMesecu=new Date(calYear,calMonth+1,0).getDate();
+
+  let dni='';
+  for(let i=0;i<zacetek;i++) dni+='<div class="cal-pop-day empty"></div>';
+  for(let d=1;d<=dniVMesecu;d++){
+    const iso=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dt=new Date(calYear,calMonth,d);
+    let cls='cal-pop-day';
+    if(dt.getTime()===danes.getTime()) cls+=' today';
+    if(iso===sel) cls+=' selected';
+    dni+=`<button class="${cls}" onclick="pickCal('${iso}')">${d}</button>`;
+  }
+  pop.innerHTML=`
+    <div class="cal-pop-head">
+      <button onclick="calNav(-1,event)">‹</button>
+      <div class="cal-pop-title">${CAL_MESECI[calMonth]} ${calYear}</div>
+      <button onclick="calNav(1,event)">›</button>
+    </div>
+    <div class="cal-pop-grid">
+      ${CAL_DOW.map(d=>`<div class="cal-pop-dow">${d}</div>`).join('')}
+      ${dni}
+    </div>
+    <div class="cal-pop-foot">
+      <button onclick="pickCal('${new Date().toISOString().slice(0,10)}')">Danes</button>
+      <button onclick="clearCalTarget(event)">Počisti</button>
+    </div>`;
+}
+function calNav(delta,e){
+  e.stopPropagation();
+  calMonth+=delta;
+  if(calMonth<0){calMonth=11;calYear--;}
+  if(calMonth>11){calMonth=0;calYear++;}
+  renderCal(e.target.closest('.cal-pop'));
+}
+function pickCal(iso){
+  if(calTarget){
+    calTarget.dataset.iso=iso;
+    calTarget.value=fmtDMY(iso); // prikaži dd/mm/yyyy
+    calTarget.dispatchEvent(new Event('change'));
+  }
+  document.querySelectorAll('.cal-pop').forEach(p=>p.remove());
+  document.removeEventListener('click', closeCalOutside);
+}
+function clearCalTarget(e){
+  e.stopPropagation();
+  if(calTarget){calTarget.dataset.iso='';calTarget.value='';calTarget.dispatchEvent(new Event('change'));}
+  document.querySelectorAll('.cal-pop').forEach(p=>p.remove());
+}
+// Pomožni: nastavi/preberi ISO vrednost polja
+function setCalValue(id, iso){
+  const el=document.getElementById(id);
+  el.dataset.iso=iso||'';
+  el.value=iso?fmtDMY(iso):'';
+}
+function getCalValue(id){
+  return document.getElementById(id).dataset.iso||'';
+}
+function clearCal(id){ setCalValue(id,''); }
+
 // ── API ───────────────────────────────────────────────────────
 async function api(action, params={}) {
   if(!API_URL) return null;
@@ -528,7 +652,7 @@ document.querySelectorAll('.modal-bg').forEach(bg=>{
 function resetForms() {
   document.querySelectorAll('.modal input:not([type=hidden]), .modal select, .modal textarea').forEach(el=>{
     if(el.tagName==='SELECT') el.selectedIndex=0;
-    else el.value='';
+    else { el.value=''; if(el.dataset) el.dataset.iso=''; }
   });
   document.getElementById('slotTime').value='09:00';
   document.getElementById('slotMesta').value='1';
@@ -619,7 +743,7 @@ async function loadSlots() {
   renderSlots();
 }
 function renderSlots() {
-  const df = document.getElementById('slotDateFilter')?.value;
+  const df = getCalValue('slotDateFilter');
   let list = [...slots].filter(s=>s.aktiven!=='false'&&s.aktiven!==false);
   if(df) list = list.filter(s=>s.datum===df);
   list.sort((a,b)=>(a.datum+a.cas).localeCompare(b.datum+b.cas));
@@ -641,7 +765,7 @@ function renderSlots() {
   }).join('');
 }
 async function saveSlot() {
-  const datum=document.getElementById('slotDate').value;
+  const datum=getCalValue('slotDate');
   const cas=document.getElementById('slotTime').value;
   if(!datum){alert('Datum je obvezen');return;}
   const id=document.getElementById('slotId').value;
@@ -660,7 +784,7 @@ function editSlot(id) {
   const s=slots.find(x=>x.id===id);
   document.getElementById('slotModalTitle').textContent='Uredi termin';
   document.getElementById('slotId').value=s.id;
-  document.getElementById('slotDate').value=s.datum||'';
+  setCalValue('slotDate', s.datum||'');
   document.getElementById('slotTime').value=s.cas||'09:00';
   document.getElementById('slotType').value=s.tip||'Individualni';
   document.getElementById('slotNaziv').value=s.naziv||'';
@@ -685,7 +809,7 @@ function getSlotInfo(slotId) {
   return fmtDMYDan(s.datum)+' '+s.cas;
 }
 function renderBookings() {
-  const df=document.getElementById('bookingDateFilter')?.value;
+  const df=getCalValue('bookingDateFilter');
   const sf=document.getElementById('bookingStatusFilter')?.value;
   let list=[...bookings];
   if(sf)list=list.filter(b=>b.status===sf);
@@ -783,7 +907,7 @@ async function savePayment() {
   if(!cid||isNaN(amt)){alert('Stranka in znesek sta obvezna');return;}
   const id=document.getElementById('paymentId').value;
   const data={id,client_id:cid,opis:document.getElementById('paymentDesc').value.trim(),
-    znesek:amt,rok:document.getElementById('paymentDue').value,
+    znesek:amt,rok:getCalValue('paymentDue'),
     status:document.getElementById('paymentStatus').value};
   const r=await apiPost({action:id?'updatePayment':'addPayment',...data});
   if(r?.error){alert(r.error);return;}
@@ -797,7 +921,7 @@ function editPayment(id) {
   document.getElementById('paymentClient').value=p.client_id;
   document.getElementById('paymentDesc').value=p.opis||'';
   document.getElementById('paymentAmount').value=p.znesek;
-  document.getElementById('paymentDue').value=p.rok||'';
+  setCalValue('paymentDue', p.rok||'');
   document.getElementById('paymentStatus').value=p.status;
   openModal('paymentModal');
 }
