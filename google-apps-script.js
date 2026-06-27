@@ -79,9 +79,11 @@ function emailTemplate(title, emoji, rows, footer) {
 
 function fmtSlot(slot) {
   if (!slot) return '—';
-  const d = new Date(slot.datum);
+  const d = new Date(slot.datum + 'T00:00:00');
   const dni = ['ned','pon','tor','sre','čet','pet','sob'];
-  return `${dni[d.getDay()]}, ${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()} ob ${slot.cas}`;
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dni[d.getDay()]}, ${dd}/${mm}/${d.getFullYear()} ob ${slot.cas}`;
 }
 
 // ════════════════════════════════════════════════════════════

@@ -255,6 +255,11 @@ const DAYS_SL = ['Nedelja','Ponedeljek','Torek','Sreda','Četrtek','Petek','Sobo
 const MONTHS_SL = ['januar','februar','marec','april','maj','junij','julij','avgust','september','oktober','november','december'];
 const ALLOWED_DAYS = [1,2,3,4];
 
+// Datum v dd/mm/yyyy
+function dmy(d){
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+
 let weekOffset = 0, slots = [], selectedSlot = null, selectedWaitSlot = null;
 
 // Slovenski državni prazniki in dela prosti dnevi
@@ -290,7 +295,7 @@ async function loadSlots() {
   const dates = getWeekDates(weekOffset);
   const mon=dates[0], thu=dates[3];
   document.getElementById('weekLabel').textContent =
-    `${mon.getDate()}. – ${thu.getDate()}. ${MONTHS_SL[thu.getMonth()]} ${thu.getFullYear()}`;
+    `${dmy(mon)} – ${dmy(thu)}`;
   const wrap = document.getElementById('calWrap');
   wrap.innerHTML = '<div class="loading-msg">Nalagam termine...</div>';
   try {
@@ -342,7 +347,7 @@ function selectSlot(id) {
   selectedSlot = slots.find(s=>s.id===id); if(!selectedSlot) return;
   const d = new Date(selectedSlot.datum);
   document.getElementById('slotSummary').textContent =
-    `${DAYS_SL[d.getDay()]}, ${d.getDate()}. ${MONTHS_SL[d.getMonth()]} — ${selectedSlot.cas}${selectedSlot.naziv?' · '+selectedSlot.naziv:''}`;
+    `${DAYS_SL[d.getDay()]}, ${dmy(d)} — ${selectedSlot.cas}${selectedSlot.naziv?' · '+selectedSlot.naziv:''}`;
   document.getElementById('formView').style.display='block';
   document.getElementById('successView').classList.remove('show');
   document.getElementById('formPanel').classList.add('open');
@@ -369,7 +374,7 @@ async function submitBooking() {
     if(data.error) throw new Error(data.error);
     const d=new Date(selectedSlot.datum);
     document.getElementById('successMsg').textContent=
-      `Vaš termin ${DAYS_SL[d.getDay()]}, ${d.getDate()}. ${MONTHS_SL[d.getMonth()]} ob ${selectedSlot.cas} je potrjen. Se vidimo! Potrditev prejmete na email.`;
+      `Vaš termin ${DAYS_SL[d.getDay()]}, ${dmy(d)} ob ${selectedSlot.cas} je potrjen. Se vidimo! Potrditev prejmete na email.`;
     document.getElementById('formView').style.display='none';
     document.getElementById('successView').classList.add('show');
   } catch(e){alert(e.message);}
@@ -381,7 +386,7 @@ function selectWaitlist(id) {
   selectedWaitSlot=slots.find(s=>s.id===id); if(!selectedWaitSlot) return;
   const d=new Date(selectedWaitSlot.datum);
   document.getElementById('waitlistSummary').textContent=
-    `${DAYS_SL[d.getDay()]}, ${d.getDate()}. ${MONTHS_SL[d.getMonth()]} — ${selectedWaitSlot.cas}`;
+    `${DAYS_SL[d.getDay()]}, ${dmy(d)} — ${selectedWaitSlot.cas}`;
   document.getElementById('waitlistFormView').style.display='block';
   document.getElementById('waitlistSuccessView').classList.remove('show');
   document.getElementById('waitlistPanel').classList.add('open');
@@ -446,7 +451,7 @@ async function loadMyBookings() {
       const slot=rs.find(s=>s.id===b.slot_id); if(!slot) return '';
       const slotDT=new Date(slot.datum+'T'+(slot.cas||'00:00')+':00');
       const diffH=(slotDT-now)/(1000*60*60);
-      const df=slotDT.toLocaleDateString('sl-SI',{weekday:'long',day:'numeric',month:'long'});
+      const df=`${DAYS_SL[slotDT.getDay()]}, ${dmy(slotDT)}`;
       return `<div class="my-booking-row">
         <div class="my-booking-info">
           <div class="my-booking-date">${df} ob ${slot.cas||'—'}</div>
