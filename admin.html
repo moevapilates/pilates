@@ -441,11 +441,29 @@ try{
 
 <script>
 // ── CONFIG ───────────────────────────────────────────────────
-let API_URL = localStorage.getItem('pilates_api_url') || '';
+// URL je že vpisan — ni treba nastavljati. (Lahko spremeniš v Nastavitvah)
+const PRIVZETI_URL = 'https://script.google.com/macros/s/AKfycby1ad2kCxstwlDmG-Yzb9tl3qsJuAclPMX_2QP7vrV05M5rE9BKdm1PjVideHagismNCQ/exec';
+let API_URL = localStorage.getItem('pilates_api_url') || PRIVZETI_URL;
 if(API_URL) document.getElementById('apiUrlInput').value = API_URL;
 
 // ── LOCAL CACHE ───────────────────────────────────────────────
 let clients=[], slots=[], bookings=[], payments=[];
+
+// ── DATUM FORMAT dd/mm/yyyy ──────────────────────────────────
+const DNI_SL=['ned','pon','tor','sre','čet','pet','sob'];
+function fmtDMY(datum){
+  // datum je "yyyy-mm-dd" → "dd/mm/yyyy"
+  if(!datum) return '—';
+  const p=datum.toString().slice(0,10).split('-');
+  if(p.length!==3) return datum;
+  return `${p[2]}/${p[1]}/${p[0]}`;
+}
+function fmtDMYDan(datum){
+  // "yyyy-mm-dd" → "pon 29/06/2026"
+  if(!datum) return '—';
+  const d=new Date(datum+'T00:00:00');
+  return `${DNI_SL[d.getDay()]} ${fmtDMY(datum)}`;
+}
 
 // ── API ───────────────────────────────────────────────────────
 async function api(action, params={}) {
@@ -541,8 +559,11 @@ function renderClients() {
     let opozorilo = '';
     if(ns >= 3) opozorilo = `<span class="badge badge-overdue" title="${ns} neprihodov">⚠ ${ns}× ni prišla</span>`;
     else if(ns > 0) opozorilo = `<span class="td-muted">${ns}× ni prišla</span>`;
-    return `<tr>
-    <td class="td-name">${c.ime}${opozorilo?' '+opozorilo:''}</td>
+    // Opozori če manjka kontakt
+    const niKontakta = !((c.telefon||'').trim()) && !((c.email||'').trim());
+    const kontaktOpozorilo = niKontakta ? `<span class="badge badge-overdue" title="Brez kontakta ne more rezervirati">⚠ ni kontakta</span>` : '';
+    return `<tr${niKontakta?' style="background:#FDF3F1"':''}>
+    <td class="td-name">${c.ime}${opozorilo?' '+opozorilo:''}${kontaktOpozorilo?' '+kontaktOpozorilo:''}</td>
     <td>${c.telefon||'<span class="td-muted">—</span>'}</td>
     <td>${c.email||'<span class="td-muted">—</span>'}</td>
     <td>${c.paket?`<span class="badge badge-confirmed">${c.paket}</span>`:'<span class="td-muted">—</span>'}</td>
@@ -557,11 +578,15 @@ function renderClients() {
 async function saveClient() {
   const ime = document.getElementById('clientName').value.trim();
   if(!ime){alert('Ime je obvezno');return;}
+  const telefon = document.getElementById('clientPhone').value.trim();
+  const email = document.getElementById('clientEmail').value.trim();
+  // Opozori če manjka kontakt (brez tega stranka ne more rezervirati)
+  if(!telefon && !email){
+    if(!confirm('⚠ Ta stranka nima emaila ne telefona.\n\nBrez vsaj enega NE BO mogla rezervirati termina.\n\nŽeliš vseeno shraniti?')) return;
+  }
   const id = document.getElementById('clientId').value;
   const data = {
-    id, ime,
-    telefon: document.getElementById('clientPhone').value.trim(),
-    email: document.getElementById('clientEmail').value.trim(),
+    id, ime, telefon, email,
     paket: document.getElementById('clientPackage').value,
     opomba: document.getElementById('clientNote').value.trim()
   };
@@ -601,8 +626,7 @@ function renderSlots() {
   const tbody = document.getElementById('slotsTable');
   if(!list.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📅</div><p>Ni terminov.</p></div></td></tr>`;return;}
   tbody.innerHTML = list.map(s=>{
-    const d = new Date(s.datum);
-    const df2 = d.toLocaleDateString('sl-SI',{weekday:'short',day:'numeric',month:'short'});
+    const df2 = fmtDMYDan(s.datum);
     const full = parseInt(s.rezervirano||0)>=parseInt(s.max_mest||1);
     return `<tr>
       <td>${df2}</td><td>${s.cas||'—'}</td>
@@ -658,8 +682,7 @@ async function loadBookings() {
 function getSlotInfo(slotId) {
   const s=slots.find(x=>x.id===slotId);
   if(!s)return'—';
-  const d=new Date(s.datum);
-  return d.toLocaleDateString('sl-SI',{weekday:'short',day:'numeric',month:'short'})+' '+s.cas;
+  return fmtDMYDan(s.datum)+' '+s.cas;
 }
 function renderBookings() {
   const df=document.getElementById('bookingDateFilter')?.value;
@@ -745,7 +768,7 @@ function renderPayments() {
     <td class="td-name">${clientName(p.client_id)}</td>
     <td>${p.opis||'<span class="td-muted">—</span>'}</td>
     <td><strong>${parseFloat(p.znesek||0).toFixed(2)} €</strong></td>
-    <td>${p.rok?new Date(p.rok).toLocaleDateString('sl-SI'):'—'}</td>
+    <td>${fmtDMY(p.rok)}</td>
     <td><span class="badge ${bm[p.status]||'badge-pending'}">${lm[p.status]||p.status}</span></td>
     <td><div class="actions-cell">
       ${p.status!=='placano'?`<button class="btn btn-sage btn-sm" onclick="markPaid('${p.id}')">Plačano ✓</button>`:''}
@@ -815,7 +838,7 @@ async function loadDashboard() {
   const unpaid=(payments||[]).filter(p=>p.status!=='placano').slice(0,7);
   const dp=document.getElementById('dash-payments');
   dp.innerHTML=unpaid.length?unpaid.map(p=>{
-    const due=p.rok?new Date(p.rok).toLocaleDateString('sl-SI'):'—';
+    const due=fmtDMY(p.rok);
     return `<tr><td class="td-name">${clientName(p.client_id)}</td><td><strong>${parseFloat(p.znesek||0).toFixed(2)} €</strong></td><td>${due}</td></tr>`;
   }).join(''):'<tr><td colspan="3" class="td-muted" style="text-align:center;padding:20px">Vsa plačila urejena ✓</td></tr>';
 }
