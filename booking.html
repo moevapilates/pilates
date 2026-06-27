@@ -190,7 +190,7 @@ input:focus{border-color:var(--sage);background:white}
     </div>
     <div class="my-bookings-list" id="myBookingsList">
       <div class="my-bookings-email">
-        <input type="email" id="myEmail" placeholder="Vnesite vaš email za prikaz rezervacij">
+        <input type="text" id="myEmail" placeholder="Vnesite email ali telefon">
         <button onclick="loadMyBookings()">Prikaži</button>
       </div>
       <div id="myBookingsResult"></div>
@@ -214,9 +214,10 @@ input:focus{border-color:var(--sage);background:white}
     <div id="formView">
       <h2>Rezerviraj termin</h2>
       <div class="slot-summary" id="slotSummary"></div>
+      <div style="background:var(--sage-pale);border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:var(--accent);line-height:1.4">Vpišite <strong>email ali telefon</strong>, ki ste ga sporočili Evi ob vpisu. Rezervirajo lahko le vpisane članice.</div>
       <div class="form-group"><label>Ime in priimek *</label><input type="text" id="bookName" placeholder="Ana Novak" autocomplete="name"></div>
-      <div class="form-group"><label>Email</label><input type="email" id="bookEmail" placeholder="ana@email.com" autocomplete="email"></div>
-      <div class="form-group"><label>Telefon</label><input type="tel" id="bookPhone" placeholder="+386 ..." autocomplete="tel"></div>
+      <div class="form-group"><label>Email <span style="text-transform:none;font-weight:400">(ali telefon)</span></label><input type="email" id="bookEmail" placeholder="ana@email.com" autocomplete="email"></div>
+      <div class="form-group"><label>Telefon <span style="text-transform:none;font-weight:400">(ali email)</span></label><input type="tel" id="bookPhone" placeholder="041 234 567" autocomplete="tel"></div>
       <div class="form-actions">
         <button class="btn btn-outline" onclick="closeForm()">Prekliči</button>
         <button class="btn btn-primary" onclick="submitBooking()">Potrdi rezervacijo →</button>
@@ -354,14 +355,15 @@ function closeForm() {
 }
 async function submitBooking() {
   const ime=document.getElementById('bookName').value.trim();
+  const email=document.getElementById('bookEmail').value.trim();
+  const telefon=document.getElementById('bookPhone').value.trim();
   if(!ime){alert('Prosimo, vnesite ime.');return;}
+  if(!email && !telefon){alert('Vnesite email ali telefon, ki ste ga sporočili ob vpisu.');return;}
   const btn=document.querySelector('#formView .btn-primary');
   btn.textContent='Rezerviram...'; btn.disabled=true;
   try {
     const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({
-      action:'addBooking',slot_id:selectedSlot.id,ime,
-      email:document.getElementById('bookEmail').value.trim(),
-      telefon:document.getElementById('bookPhone').value.trim()
+      action:'addBooking',slot_id:selectedSlot.id,ime,email,telefon
     })});
     const data=await r.json();
     if(data.error) throw new Error(data.error);
@@ -370,7 +372,7 @@ async function submitBooking() {
       `Vaš termin ${DAYS_SL[d.getDay()]}, ${d.getDate()}. ${MONTHS_SL[d.getMonth()]} ob ${selectedSlot.cas} je potrjen. Se vidimo! Potrditev prejmete na email.`;
     document.getElementById('formView').style.display='none';
     document.getElementById('successView').classList.add('show');
-  } catch(e){alert('Napaka: '+e.message);}
+  } catch(e){alert(e.message);}
   finally{btn.textContent='Potrdi rezervacijo →';btn.disabled=false;}
 }
 
@@ -420,17 +422,25 @@ function toggleMyBookings() {
   arrow.classList.toggle('open', list.classList.toggle('open'));
 }
 async function loadMyBookings() {
-  const email=document.getElementById('myEmail').value.trim();
-  if(!email){alert('Vnesite email.');return;}
+  const vnos=document.getElementById('myEmail').value.trim();
+  if(!vnos){alert('Vnesite email ali telefon.');return;}
   const res=document.getElementById('myBookingsResult');
   res.innerHTML='<div style="font-size:13px;color:var(--accent);padding:8px 0">Iščem...</div>';
+  // Normaliziraj za primerjavo
+  const vnosEmail=vnos.toLowerCase();
+  const vnosTel=vnos.replace(/\s|\/|-|\+/g,'');
   try {
     const [rb,rs]=await Promise.all([
       fetch(API_URL+'?action=getBookings').then(r=>r.json()),
       fetch(API_URL+'?action=getSlots').then(r=>r.json())
     ]);
-    const mine=rb.filter(b=>b.email===email&&b.status==='potrjena');
-    if(!mine.length){res.innerHTML='<div style="font-size:13px;color:#aaa;padding:8px 0">Ni aktivnih rezervacij.</div>';return;}
+    const mine=rb.filter(b=>{
+      if(b.status!=='potrjena') return false;
+      const bEmail=(b.email||'').toString().toLowerCase();
+      const bTel=(b.telefon||'').toString().replace(/\s|\/|-|\+/g,'');
+      return (bEmail && bEmail===vnosEmail) || (vnosTel && bTel && bTel===vnosTel);
+    });
+    if(!mine.length){res.innerHTML='<div style="font-size:13px;color:#aaa;padding:8px 0">Ni aktivnih rezervacij za ta email/telefon.</div>';return;}
     const now=new Date();
     res.innerHTML=mine.map(b=>{
       const slot=rs.find(s=>s.id===b.slot_id); if(!slot) return '';
@@ -440,27 +450,26 @@ async function loadMyBookings() {
       return `<div class="my-booking-row">
         <div class="my-booking-info">
           <div class="my-booking-date">${df} ob ${slot.cas||'—'}</div>
-          <div class="my-booking-type">${slot.tip||''}${slot.naziv?' · '+slot.naziv:''}</div>
+          <div class="my-booking-type">${slot.naziv||'Pilates'}</div>
         </div>
         <div style="text-align:right">
           ${diffH>=4
-            ?`<button class="btn-cancel" onclick="cancelMyBooking('${b.id}','${email}')">Odpovej</button>`
+            ?`<button class="btn-cancel" onclick="cancelMyBooking('${b.id}')">Odpovej</button>`
             :`<div class="cancel-blocked">🔒 Zaklenjena<br><span style="font-size:10px">manj kot 4h</span></div>`}
         </div>
       </div>`;
     }).join('');
   } catch(e){res.innerHTML=`<div style="font-size:13px;color:var(--error)">Napaka: ${e.message}</div>`;}
 }
-async function cancelMyBooking(id,email) {
+async function cancelMyBooking(id) {
   if(!confirm('Odpovej termin?')) return;
   try {
     const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'cancelBooking',id})});
     const data=await r.json();
     if(data.error) throw new Error(data.error);
     alert('Termin odpovedan.');
-    document.getElementById('myEmail').value=email;
     loadMyBookings(); loadSlots();
-  } catch(e){alert('Napaka: '+e.message);}
+  } catch(e){alert(e.message);}
 }
 
 function prevWeek(){weekOffset--;loadSlots();}

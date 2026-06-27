@@ -278,8 +278,8 @@ try{
     <button class="btn btn-outline btn-sm" onclick="document.getElementById('bookingDateFilter').value='';document.getElementById('bookingStatusFilter').value='';renderBookings()">Ponastavi</button>
   </div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Stranka</th><th>Email</th><th>Telefon</th><th>Datum rezervacije</th><th>Status</th><th></th></tr></thead>
-    <tbody id="bookingsTable"><tr><td colspan="6" class="loading">Nalagam...</td></tr></tbody>
+    <thead><tr><th>Stranka</th><th>Email</th><th>Telefon</th><th>Termin</th><th>Status</th><th>Prisotnost</th><th></th></tr></thead>
+    <tbody id="bookingsTable"><tr><td colspan="7" class="loading">Nalagam...</td></tr></tbody>
   </table></div>
 </div>
 
@@ -303,7 +303,10 @@ try{
 
 <!-- STATISTIKA -->
 <div class="page" id="page-stats">
-  <div class="section-header"><div class="section-title">📊 Statistika</div></div>
+  <div class="section-header">
+    <div class="section-title">📊 Statistika</div>
+    <button class="btn btn-outline" onclick="alert('Mesečni izvoz:\n\nV Google Apps Script zaženi funkcijo mesecniIzvoz().\nUstvari se nov list \\'Izvoz-...\\' ki ga preneseš kot Excel\n(Datoteka → Prenesi → Microsoft Excel).')">📥 Izvoz</button>
+  </div>
 
   <div class="stats" style="margin-bottom:18px">
     <div class="stat-card"><div class="stat-label">Treningov ta mesec</div><div class="stat-value" id="st-month-trainings">—</div></div>
@@ -408,6 +411,34 @@ try{
   </div>
 </div>
 
+<!-- PONAVLJAJOČA REZERVACIJA MODAL -->
+<div class="modal-bg" id="recurringModal">
+  <div class="modal">
+    <h2>🔁 Ponavljajoča rezervacija</h2>
+    <input type="hidden" id="recurringClientId">
+    <p style="font-size:13px;color:var(--accent);margin-bottom:16px">Rezerviraj <strong id="recurringClientName"></strong> za isti termin več tednov vnaprej.</p>
+    <div class="form-group"><label>Dan v tednu</label>
+      <select id="recurringDay">
+        <option value="1">Ponedeljek (20:00)</option>
+        <option value="2">Torek (20:00)</option>
+        <option value="3">Sreda (18:00)</option>
+        <option value="4">Četrtek (20:00)</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Za koliko tednov vnaprej</label>
+      <select id="recurringWeeks">
+        <option value="4">4 tedne</option>
+        <option value="8">8 tednov</option>
+        <option value="12">12 tednov (3 mesece)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('recurringModal')">Prekliči</button>
+      <button class="btn btn-primary" onclick="saveRecurring()">Rezerviraj vse</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── CONFIG ───────────────────────────────────────────────────
 let API_URL = localStorage.getItem('pilates_api_url') || '';
@@ -504,17 +535,24 @@ function renderClients() {
   const list = clients.filter(c=>(c.ime||'').toLowerCase().includes(q));
   const tbody = document.getElementById('clientsTable');
   if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">🧘</div><p>Ni strank.</p></div></td></tr>`;return;}
-  tbody.innerHTML = list.map(c=>`<tr>
-    <td class="td-name">${c.ime}</td>
+  tbody.innerHTML = list.map(c=>{
+    const odp = parseInt(c.st_odpovedi||0);
+    const ns = parseInt(c.st_noshow||0);
+    let opozorilo = '';
+    if(ns >= 3) opozorilo = `<span class="badge badge-overdue" title="${ns} neprihodov">⚠ ${ns}× ni prišla</span>`;
+    else if(ns > 0) opozorilo = `<span class="td-muted">${ns}× ni prišla</span>`;
+    return `<tr>
+    <td class="td-name">${c.ime}${opozorilo?' '+opozorilo:''}</td>
     <td>${c.telefon||'<span class="td-muted">—</span>'}</td>
     <td>${c.email||'<span class="td-muted">—</span>'}</td>
     <td>${c.paket?`<span class="badge badge-confirmed">${c.paket}</span>`:'<span class="td-muted">—</span>'}</td>
     <td class="td-muted">${c.opomba||'—'}</td>
     <td><div class="actions-cell">
+      <button class="btn btn-sage btn-sm" onclick="openRecurring('${c.id}','${(c.ime||'').replace(/'/g,'')}')" title="Ponavljajoča rezervacija">🔁</button>
       <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')">Uredi</button>
       <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">✕</button>
     </div></td>
-  </tr>`).join('');
+  </tr>`;}).join('');
 }
 async function saveClient() {
   const ime = document.getElementById('clientName').value.trim();
@@ -613,7 +651,7 @@ async function deleteSlot(id) {
 // ── BOOKINGS ──────────────────────────────────────────────────
 async function loadBookings() {
   const [b,s]=await Promise.all([api('getBookings'),api('getSlots')]);
-  if(!b){noApi('bookingsTable',6);return;}
+  if(!b){noApi('bookingsTable',7);return;}
   bookings=b; slots=s||slots;
   renderBookings();
 }
@@ -628,24 +666,34 @@ function renderBookings() {
   const sf=document.getElementById('bookingStatusFilter')?.value;
   let list=[...bookings];
   if(sf)list=list.filter(b=>b.status===sf);
-  list.sort((a,b)=>(a.datum_rezervacije||'').localeCompare(b.datum_rezervacije||''));
+  if(df)list=list.filter(b=>{const s=slots.find(x=>x.id===b.slot_id);return s&&s.datum===df;});
+  list.sort((a,b)=>{
+    const sa=slots.find(x=>x.id===a.slot_id), sb=slots.find(x=>x.id===b.slot_id);
+    const ka=sa?(sa.datum+sa.cas):a.datum_rezervacije||'';
+    const kb=sb?(sb.datum+sb.cas):b.datum_rezervacije||'';
+    return ka.localeCompare(kb);
+  });
   const tbody=document.getElementById('bookingsTable');
-  if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><p>Ni rezervacij.</p></div></td></tr>`;return;}
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📋</div><p>Ni rezervacij.</p></div></td></tr>`;return;}
   const now = new Date();
   tbody.innerHTML=list.map(b=>{
     const badge=b.status==='potrjena'?'badge-confirmed':'badge-cancelled';
     const label=b.status==='potrjena'?'Potrjena':'Odpovedana';
-    // Preveri 4h pravilo
     const slot = slots.find(s=>s.id===b.slot_id);
     let cancelBtn = '';
+    let prisotnostBtn = '';
     if(b.status==='potrjena') {
+      // Odpoved gumb
       if(slot && slot.datum && slot.cas) {
         const slotDT = new Date(slot.datum + 'T' + slot.cas + ':00');
         const diffH = (slotDT - now) / (1000*60*60);
-        if(diffH < 4) {
-          cancelBtn = `<span class="td-muted" title="Manj kot 4h do termina">🔒 Zaklenjeno</span>`;
-        } else {
-          cancelBtn = `<button class="btn btn-outline btn-sm" onclick="cancelBooking('${b.id}')">Odpovej</button>`;
+        if(diffH < 4) cancelBtn = `<span class="td-muted">🔒</span>`;
+        else cancelBtn = `<button class="btn btn-outline btn-sm" onclick="cancelBooking('${b.id}')">Odpovej</button>`;
+        // Prisotnost gumb (samo za pretekle/današnje termine)
+        if(slotDT <= now || diffH < 24) {
+          if(b.prisotnost==='prisoten') prisotnostBtn=`<span class="badge badge-paid">✓ Prišla</span>`;
+          else if(b.prisotnost==='ni-prisel') prisotnostBtn=`<span class="badge badge-overdue">✗ Ni prišla</span>`;
+          else prisotnostBtn=`<button class="btn btn-sage btn-sm" onclick="oznaciPrisotnost('${b.id}',true)">✓</button> <button class="btn btn-danger btn-sm" onclick="oznaciPrisotnost('${b.id}',false)">✗</button>`;
         }
       } else {
         cancelBtn = `<button class="btn btn-outline btn-sm" onclick="cancelBooking('${b.id}')">Odpovej</button>`;
@@ -657,9 +705,15 @@ function renderBookings() {
       <td>${b.telefon||'<span class="td-muted">—</span>'}</td>
       <td>${getSlotInfo(b.slot_id)}</td>
       <td><span class="badge ${badge}">${label}</span></td>
+      <td>${prisotnostBtn}</td>
       <td>${cancelBtn}</td>
     </tr>`;
   }).join('');
+}
+async function oznaciPrisotnost(id, prisoten) {
+  const r = await apiPost({action:'oznaciPrisotnost', id, prisoten});
+  if(r?.error){ alert('⚠ ' + r.error); return; }
+  loadBookings();
 }
 async function cancelBooking(id) {
   if(!confirm('Odpovej rezervacijo?'))return;
@@ -764,6 +818,33 @@ async function loadDashboard() {
     const due=p.rok?new Date(p.rok).toLocaleDateString('sl-SI'):'—';
     return `<tr><td class="td-name">${clientName(p.client_id)}</td><td><strong>${parseFloat(p.znesek||0).toFixed(2)} €</strong></td><td>${due}</td></tr>`;
   }).join(''):'<tr><td colspan="3" class="td-muted" style="text-align:center;padding:20px">Vsa plačila urejena ✓</td></tr>';
+}
+
+// ── PONAVLJAJOČA REZERVACIJA ─────────────────────────────────
+function openRecurring(clientId, clientName) {
+  document.getElementById('recurringClientId').value = clientId;
+  document.getElementById('recurringClientName').textContent = clientName;
+  openModal('recurringModal');
+}
+async function saveRecurring() {
+  const clientId = document.getElementById('recurringClientId').value;
+  const dan = document.getElementById('recurringDay').value;
+  const tednov = document.getElementById('recurringWeeks').value;
+  const casMap = {'1':'20:00','2':'20:00','3':'18:00','4':'20:00'};
+  const btn = event.target;
+  btn.textContent='Rezerviram...'; btn.disabled=true;
+  const r = await apiPost({
+    action:'ponavljajocaRezervacija',
+    client_id: clientId,
+    dan_v_tednu: dan,
+    cas: casMap[dan],
+    tednov: tednov
+  });
+  btn.textContent='Rezerviraj vse'; btn.disabled=false;
+  if(r?.error){ alert('⚠ ' + r.error); return; }
+  closeModal('recurringModal');
+  alert(`✓ Rezerviranih ${r.rezerviranih} terminov` + (r.preskocenih>0?`, ${r.preskocenih} preskočenih (zasedeno/že rezervirano).`:'.'));
+  loadBookings();
 }
 
 function noApi(tbodyId, cols) {
