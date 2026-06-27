@@ -6,6 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#2C2C2C">
 <title>MOEVA PILATES — Admin</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Inter:wght@300;400;500&display=swap');
 :root {
@@ -15,7 +17,7 @@
   --success:#6A9E7A;--border:#DDD8D0;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;overscroll-behavior:none}
 body{font-family:'Inter',sans-serif;background:var(--warm-white);color:var(--charcoal);font-size:14px;min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 header{background:var(--charcoal);color:var(--warm-white);padding:calc(14px + env(safe-area-inset-top)) 16px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px}
 header h1{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;letter-spacing:.04em}
@@ -138,7 +140,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage);background:whit
 <!-- ZAKLEP Z GESLOM -->
 <div id="lockScreen" style="position:fixed;inset:0;z-index:9999;background:var(--charcoal);display:flex;align-items:center;justify-content:center;padding:24px">
   <div style="background:white;border-radius:16px;padding:36px 28px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">
-    <div style="width:64px;height:64px;border-radius:50%;background:var(--sage);margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:30px;color:white;border:3px solid var(--sage-light)">M</div>
+    <img src="logo.jpg" alt="MOEVA" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 18px;display:block;border:3px solid var(--sage-light)">
     <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400;margin-bottom:6px">MOEVA PILATES</h2>
     <p style="font-size:13px;color:var(--accent);margin-bottom:22px">Vnesite geslo za dostop</p>
     <input type="password" id="lockPassword" placeholder="Geslo" autocomplete="current-password"
