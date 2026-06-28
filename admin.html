@@ -369,15 +369,17 @@ try{
     <div class="form-group"><label>Telefon</label><input type="text" id="clientPhone" placeholder="+386 ..."></div>
     <div class="form-group"><label>Email</label><input type="email" id="clientEmail"></div>
     <div class="form-group"><label>Paket</label>
-      <select id="clientPackage">
+      <select id="clientPackage" onchange="paketNastaviUre()">
         <option value="">— brez —</option>
-        <option value="1x tedensko">1x tedensko</option>
-        <option value="2x tedensko">2x tedensko</option>
-        <option value="3x tedensko">3x tedensko</option>
-        <option value="10 ur paket">10 ur paket</option>
-        <option value="Individualno">Individualno</option>
-        <option value="Mesečna naročnina">Mesečna naročnina</option>
+        <option value="4× mesečno">4× mesečno (4 obiski)</option>
+        <option value="8× mesečno">8× mesečno (8 obiskov)</option>
+        <option value="12× mesečno">12× mesečno (12 obiskov)</option>
+        <option value="Po dogovoru">Po dogovoru</option>
       </select>
+    </div>
+    <div class="form-group" id="urePaketGroup"><label>Preostali obiski v paketu</label>
+      <input type="number" id="clientUre" min="0" placeholder="npr. 8" style="width:120px">
+      <div style="font-size:11px;color:var(--accent);margin-top:4px">Samodejno se odšteje ob vsaki rezervaciji.</div>
     </div>
     <div class="form-group"><label>Opomba</label><textarea id="clientNote" rows="2" placeholder="Poškodbe, posebnosti..."></textarea></div>
     <div class="modal-actions">
@@ -686,11 +688,23 @@ function renderClients() {
     // Opozori če manjka kontakt
     const niKontakta = !((c.telefon||'').toString().trim()) && !((c.email||'').toString().trim());
     const kontaktOpozorilo = niKontakta ? `<span class="badge badge-overdue" title="Brez kontakta ne more rezervirati">⚠ ni kontakta</span>` : '';
+    // Paket + preostali obiski
+    let paketHtml='<span class="td-muted">—</span>';
+    if(c.paket){
+      const skupaj=parseInt(c.ure_skupaj||0), porab=parseInt(c.ure_porabljene||0);
+      const ostalo=skupaj-porab;
+      let ostBadge='';
+      if(skupaj>0){
+        const barva = ostalo<=2 ? 'badge-overdue' : 'badge-paid';
+        ostBadge=` <span class="badge ${barva}">${ostalo} ostalo</span>`;
+      }
+      paketHtml=`<span class="badge badge-confirmed">${c.paket}</span>${ostBadge}`;
+    }
     return `<tr${niKontakta?' style="background:#FDF3F1"':''}>
     <td class="td-name">${c.ime}${opozorilo?' '+opozorilo:''}${kontaktOpozorilo?' '+kontaktOpozorilo:''}</td>
     <td>${c.telefon||'<span class="td-muted">—</span>'}</td>
     <td>${c.email||'<span class="td-muted">—</span>'}</td>
-    <td>${c.paket?`<span class="badge badge-confirmed">${c.paket}</span>`:'<span class="td-muted">—</span>'}</td>
+    <td>${paketHtml}</td>
     <td class="td-muted">${c.opomba||'—'}</td>
     <td><div class="actions-cell">
       <button class="btn btn-sage btn-sm" onclick="openRecurring('${c.id}','${(c.ime||'').replace(/'/g,'')}')" title="Ponavljajoča rezervacija">🔁</button>
@@ -709,14 +723,25 @@ async function saveClient() {
     if(!confirm('⚠ Ta stranka nima emaila ne telefona.\n\nBrez vsaj enega NE BO mogla rezervirati termina.\n\nŽeliš vseeno shraniti?')) return;
   }
   const id = document.getElementById('clientId').value;
+  const ureVnos = document.getElementById('clientUre').value;
   const data = {
     id, ime, telefon, email,
     paket: document.getElementById('clientPackage').value,
+    ure_skupaj: ureVnos!=='' ? ureVnos : '',
     opomba: document.getElementById('clientNote').value.trim()
   };
   const r = await apiPost({action: id?'updateClient':'addClient', ...data});
   if(r?.error){alert(r.error);return;}
   closeModal('clientModal'); loadClients();
+}
+// Samodejno nastavi obiske glede na izbran paket
+function paketNastaviUre() {
+  const paket = document.getElementById('clientPackage').value;
+  const ureField = document.getElementById('clientUre');
+  const map = {'4× mesečno':4, '8× mesečno':8, '12× mesečno':12};
+  if(map[paket]!==undefined && ureField.value===''){
+    ureField.value = map[paket];
+  }
 }
 function editClient(id) {
   const c = clients.find(x=>String(x.id)===String(id));
@@ -727,6 +752,9 @@ function editClient(id) {
   document.getElementById('clientPhone').value=c.telefon||'';
   document.getElementById('clientEmail').value=c.email||'';
   document.getElementById('clientPackage').value=c.paket||'';
+  // Preostali obiski = skupaj - porabljene
+  const skupaj=parseInt(c.ure_skupaj||0), porab=parseInt(c.ure_porabljene||0);
+  document.getElementById('clientUre').value = c.ure_skupaj ? Math.max(0,skupaj-porab) : '';
   document.getElementById('clientNote').value=c.opomba||'';
   openModal('clientModal');
 }
