@@ -477,6 +477,10 @@ try{
 // URL je že vpisan — ni treba nastavljati. (Lahko spremeniš v Nastavitvah)
 const PRIVZETI_URL = 'https://script.google.com/macros/s/AKfycby1ad2kCxstwlDmG-Yzb9tl3qsJuAclPMX_2QP7vrV05M5rE9BKdm1PjVideHagismNCQ/exec';
 let API_URL = localStorage.getItem('pilates_api_url') || PRIVZETI_URL;
+// Samodejno shrani privzeti URL, da je vedno povezan (brez ročnega potrjevanja)
+if(!localStorage.getItem('pilates_api_url') && PRIVZETI_URL){
+  try{ localStorage.setItem('pilates_api_url', PRIVZETI_URL); }catch(e){}
+}
 if(API_URL) document.getElementById('apiUrlInput').value = API_URL;
 
 // ── LOCAL CACHE ───────────────────────────────────────────────
