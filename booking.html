@@ -216,8 +216,7 @@ input:focus{border-color:var(--sage);background:white}
       <div class="slot-summary" id="slotSummary"></div>
       <div style="background:var(--sage-pale);border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:var(--accent);line-height:1.4">Vpišite <strong>email ali telefon</strong>, ki ste ga sporočili Evi ob vpisu. Rezervirajo lahko le vpisane članice.</div>
       <div class="form-group"><label>Ime in priimek *</label><input type="text" id="bookName" placeholder="Ana Novak" autocomplete="name"></div>
-      <div class="form-group"><label>Email <span style="text-transform:none;font-weight:400">(ali telefon)</span></label><input type="email" id="bookEmail" placeholder="ana@email.com" autocomplete="email"></div>
-      <div class="form-group"><label>Telefon <span style="text-transform:none;font-weight:400">(ali email)</span></label><input type="tel" id="bookPhone" placeholder="041 234 567" autocomplete="tel"></div>
+      <div class="form-group"><label>Email ali telefon *</label><input type="text" id="bookContact" placeholder="ana@email.com ali 041 234 567" autocomplete="email"></div>
       <div class="form-actions">
         <button class="btn btn-outline" onclick="closeForm()">Prekliči</button>
         <button class="btn btn-primary" onclick="submitBooking()">Potrdi rezervacijo →</button>
@@ -360,15 +359,18 @@ function selectSlot(id) {
 }
 function closeForm() {
   document.getElementById('formPanel').classList.remove('open');
-  ['bookName','bookEmail','bookPhone'].forEach(id=>document.getElementById(id).value='');
+  ['bookName','bookContact'].forEach(id=>document.getElementById(id).value='');
   selectedSlot=null;
 }
 async function submitBooking() {
   const ime=document.getElementById('bookName').value.trim();
-  const email=document.getElementById('bookEmail').value.trim();
-  const telefon=document.getElementById('bookPhone').value.trim();
+  const kontakt=document.getElementById('bookContact').value.trim();
   if(!ime){alert('Prosimo, vnesite ime.');return;}
-  if(!email && !telefon){alert('Vnesite email ali telefon, ki ste ga sporočili ob vpisu.');return;}
+  if(!kontakt){alert('Vnesite email ali telefon, ki ste ga sporočili ob vpisu.');return;}
+  // Ugotovi ali je email (vsebuje @) ali telefon
+  const jeEmail = kontakt.includes('@');
+  const email = jeEmail ? kontakt : '';
+  const telefon = jeEmail ? '' : kontakt;
   const btn=document.querySelector('#formView .btn-primary');
   btn.textContent='Rezerviram...'; btn.disabled=true;
   try {
@@ -379,7 +381,7 @@ async function submitBooking() {
     if(data.error) throw new Error(data.error);
     const d=new Date(selectedSlot.datum);
     document.getElementById('successMsg').textContent=
-      `Vaš termin ${DAYS_SL[d.getDay()]}, ${dmy(d)} ob ${selectedSlot.cas} je potrjen. Se vidimo! Potrditev prejmete na email.`;
+      `Vaš termin ${DAYS_SL[d.getDay()]}, ${dmy(d)} ob ${selectedSlot.cas} je potrjen. Se vidimo!`;
     document.getElementById('formView').style.display='none';
     document.getElementById('successView').classList.add('show');
   } catch(e){alert(e.message);}
