@@ -178,6 +178,7 @@ function checkPassword(){
   if(val === ADMIN_PASSWORD){
     document.getElementById('lockScreen').style.display='none';
     try{ sessionStorage.setItem('moeva_unlocked','1'); }catch(e){}
+    loadDashboard(); // takoj naloži podatke
   } else {
     document.getElementById('lockError').style.display='block';
     document.getElementById('lockPassword').value='';
@@ -211,32 +212,27 @@ try{
 <main>
 
 <!-- SETUP -->
-<div class="page active" id="page-setup">
-  <div class="section-header"><div class="section-title">Nastavitve & Postavitev</div></div>
-  <div class="setup-banner">
-    <strong>🚀 Kako postaviti sistem (enkratna nastavitev)</strong>
-    <b>Korak 1</b> — Ustvari Google Sheet na <a href="https://sheets.new" target="_blank">sheets.new</a><br>
-    Iz URL-ja kopiraj ID (dolga koda med <code>/d/</code> in <code>/edit</code>)<br><br>
-    <b>Korak 2</b> — Odpri <a href="https://script.google.com" target="_blank">script.google.com</a> → Nov projekt<br>
-    Kopiraj vsebino datoteke <code>google-apps-script.js</code> in zamenjaj <code>TVOJ_SHEET_ID_SEM</code> s tvojim ID-jem<br><br>
-    <b>Korak 3</b> — V Apps Scriptu: <em>Zaženi → setupSheets()</em> (ustvari liste)<br>
-    Nato: <em>Objavi → Uvedi kot spletno aplikacijo</em> → Dostop: <em>Vsi</em> → Kopiraj URL<br><br>
-    <b>Korak 4</b> — Prilepi URL spodaj in klikni Shrani:
+<div class="page" id="page-setup">
+  <div class="section-header"><div class="section-title">Nastavitve</div></div>
+  <div class="setup-banner" style="background:#f3f8f3;border-color:#c5d4c6">
+    <strong>✓ Sistem je povezan in deluje</strong>
+    Povezava z bazo je urejena — ni treba ničesar nastavljati.<br><br>
+    <strong>Tvoji linki:</strong><br>
+    Rezervacije za stranke: <code>moevapilates.github.io/pilates/booking.html</code><br>
+    Link in bio (Instagram): <code>moevapilates.github.io/pilates/linkinbio.html</code>
+  </div>
+
+  <div class="setup-banner" style="margin-top:16px">
+    <strong>⚙ Napredno — spremeni povezavo (samo če je treba)</strong>
+    Če bi kdaj zamenjala Apps Script, prilepi nov URL:<br>
     <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
     <button class="btn btn-sage" onclick="saveApiUrl()" style="margin-top:4px">Shrani URL in testiraj</button>
     <div id="testResult" style="margin-top:10px;font-size:13px"></div>
   </div>
-
-  <div class="setup-banner" style="background:#f3f8f3;border-color:#c5d4c6;margin-top:16px">
-    <strong>📤 Booking link za stranke</strong>
-    Ko je sistem nastavljen, pošlji strankam to datoteko: <code>booking.html</code><br>
-    Ali jo naloži na GitHub Pages in jim pošlji link.<br><br>
-    V <code>booking.html</code> zamenjaj <code>APPS_SCRIPT_URL</code> z istim URL-jem kot zgoraj.
-  </div>
 </div>
 
 <!-- DASHBOARD -->
-<div class="page" id="page-dashboard">
+<div class="page active" id="page-dashboard">
   <div class="stats">
     <div class="stat-card"><div class="stat-label">Aktivne stranke</div><div class="stat-value" id="stat-clients">—</div></div>
     <div class="stat-card"><div class="stat-label">Termini ta teden</div><div class="stat-value" id="stat-week">—</div></div>
@@ -1124,6 +1120,14 @@ async function loadStats() {
       <div class="rank-count">${v}×</div>
     </div>`).join(''):'<div class="td-muted" style="padding:8px 0">Ni podatkov</div>';
 }
+
+// ── ZAGON ─────────────────────────────────────────────────────
+// Če je admin že odklenjen (zavihek ostal odprt), takoj naloži podatke
+window.addEventListener('DOMContentLoaded', ()=>{
+  let odklenjen=false;
+  try{ odklenjen = sessionStorage.getItem('moeva_unlocked')==='1'; }catch(e){}
+  if(odklenjen) loadDashboard();
+});
 </script>
 </body>
 </html>
