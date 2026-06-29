@@ -292,19 +292,25 @@ try{
 
 <!-- BOOKINGS -->
 <div class="page" id="page-bookings">
-  <div class="section-header"><div class="section-title">Rezervacije strank</div></div>
+  <div class="section-header"><div class="section-title">Rezervacije <span id="bookingsCount" style="font-size:13px;color:var(--accent);font-weight:400"></span></div></div>
   <div class="filter-row">
+    <select id="bookingPeriodFilter" onchange="renderBookings()">
+      <option value="upcoming">Prihajajoče</option>
+      <option value="today">Danes</option>
+      <option value="past">Pretekle</option>
+      <option value="all">Vsa zgodovina</option>
+    </select>
     <div class="date-field" style="display:inline-block">
       <input type="text" id="bookingDateFilter" readonly placeholder="dd/mm/yyyy" onclick="openCal(this)" onchange="renderBookings()" style="width:140px">
     </div>
     <select id="bookingStatusFilter" onchange="renderBookings()">
-      <option value="">Vsi</option><option value="potrjena">Potrjena</option><option value="odpovedana">Odpovedana</option>
+      <option value="">Vsi statusi</option><option value="potrjena">Potrjena</option><option value="odpovedana">Odpovedana</option>
     </select>
-    <button class="btn btn-outline btn-sm" onclick="clearCal('bookingDateFilter');document.getElementById('bookingStatusFilter').value='';renderBookings()">Ponastavi</button>
+    <button class="btn btn-outline btn-sm" onclick="clearCal('bookingDateFilter');document.getElementById('bookingStatusFilter').value='';document.getElementById('bookingPeriodFilter').value='upcoming';renderBookings()">Ponastavi</button>
   </div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Stranka</th><th>Email</th><th>Telefon</th><th>Termin</th><th>Status</th><th>Prisotnost</th><th></th></tr></thead>
-    <tbody id="bookingsTable"><tr><td colspan="7" class="loading">Nalagam...</td></tr></tbody>
+    <thead><tr><th>Stranka</th><th>Kontakt</th><th>Termin</th><th>Status</th><th>Prisotnost</th><th></th></tr></thead>
+    <tbody id="bookingsTable"><tr><td colspan="6" class="loading">Nalagam...</td></tr></tbody>
   </table></div>
 </div>
 
@@ -834,7 +840,7 @@ async function deleteSlot(id) {
 // ── BOOKINGS ──────────────────────────────────────────────────
 async function loadBookings() {
   const [b,s]=await Promise.all([api('getBookings'),api('getSlots')]);
-  if(!b){noApi('bookingsTable',7);return;}
+  if(!b){noApi('bookingsTable',6);return;}
   bookings=b; slots=s||slots;
   renderBookings();
 }
@@ -846,18 +852,43 @@ function getSlotInfo(slotId) {
 function renderBookings() {
   const df=getCalValue('bookingDateFilter');
   const sf=document.getElementById('bookingStatusFilter')?.value;
+  const pf=document.getElementById('bookingPeriodFilter')?.value||'upcoming';
+  const now = new Date();
+  const danesStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+
   let list=[...bookings];
   if(sf)list=list.filter(b=>b.status===sf);
-  if(df)list=list.filter(b=>{const s=slots.find(x=>x.id===b.slot_id);return s&&s.datum===df;});
+  if(df)list=list.filter(b=>{const s=slots.find(x=>String(x.id)===String(b.slot_id));return s&&s.datum===df;});
+
+  // Filter po obdobju (samo če ni izbran konkreten datum)
+  if(!df){
+    list=list.filter(b=>{
+      const s=slots.find(x=>String(x.id)===String(b.slot_id));
+      if(!s||!s.datum) return pf==='all';
+      if(pf==='all') return true;
+      if(pf==='today') return s.datum===danesStr;
+      if(pf==='upcoming') return s.datum>=danesStr;
+      if(pf==='past') return s.datum<danesStr;
+      return true;
+    });
+  }
+
   list.sort((a,b)=>{
-    const sa=slots.find(x=>x.id===a.slot_id), sb=slots.find(x=>x.id===b.slot_id);
+    const sa=slots.find(x=>String(x.id)===String(a.slot_id)), sb=slots.find(x=>String(x.id)===String(b.slot_id));
     const ka=sa?(sa.datum+sa.cas):a.datum_rezervacije||'';
     const kb=sb?(sb.datum+sb.cas):b.datum_rezervacije||'';
-    return ka.localeCompare(kb);
+    // Pretekle obrnjeno (najnovejše zgoraj), prihajajoče naraščajoče
+    return pf==='past' ? kb.localeCompare(ka) : ka.localeCompare(kb);
   });
+
+  // Števec
+  const potrjenih=list.filter(b=>b.status==='potrjena').length;
+  const odpovedanih=list.filter(b=>b.status==='odpovedana').length;
+  document.getElementById('bookingsCount').textContent =
+    `· ${potrjenih} potrjenih${odpovedanih?', '+odpovedanih+' odpovedanih':''}`;
+
   const tbody=document.getElementById('bookingsTable');
-  if(!list.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📋</div><p>Ni rezervacij.</p></div></td></tr>`;return;}
-  const now = new Date();
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><p>Ni rezervacij v tem obdobju.</p></div></td></tr>`;return;}
   tbody.innerHTML=list.map(b=>{
     const badge=b.status==='potrjena'?'badge-confirmed':'badge-cancelled';
     const label=b.status==='potrjena'?'Potrjena':'Odpovedana';
@@ -865,13 +896,11 @@ function renderBookings() {
     let cancelBtn = '';
     let prisotnostBtn = '';
     if(b.status==='potrjena') {
-      // Odpoved gumb
       if(slot && slot.datum && slot.cas) {
         const slotDT = new Date(slot.datum + 'T' + slot.cas + ':00');
         const diffH = (slotDT - now) / (1000*60*60);
         if(diffH < 4) cancelBtn = `<span class="td-muted">🔒</span>`;
         else cancelBtn = `<button class="btn btn-outline btn-sm" onclick="cancelBooking('${b.id}')">Odpovej</button>`;
-        // Prisotnost gumb (samo za pretekle/današnje termine)
         if(slotDT <= now || diffH < 24) {
           if(b.prisotnost==='prisoten') prisotnostBtn=`<span class="badge badge-paid">✓ Prišla</span>`;
           else if(b.prisotnost==='ni-prisel') prisotnostBtn=`<span class="badge badge-overdue">✗ Ni prišla</span>`;
@@ -880,11 +909,14 @@ function renderBookings() {
       } else {
         cancelBtn = `<button class="btn btn-outline btn-sm" onclick="cancelBooking('${b.id}')">Odpovej</button>`;
       }
+    } else {
+      // Odpovedana — pokaži prisotnost značko če obstaja
+      if(b.prisotnost==='ni-prisel') prisotnostBtn=`<span class="badge badge-overdue">✗ Ni prišla</span>`;
     }
+    const kontakt = b.email || b.telefon || '<span class="td-muted">—</span>';
     return `<tr>
       <td class="td-name">${b.ime||'—'}</td>
-      <td>${b.email||'<span class="td-muted">—</span>'}</td>
-      <td>${b.telefon||'<span class="td-muted">—</span>'}</td>
+      <td>${kontakt}</td>
       <td>${getSlotInfo(b.slot_id)}</td>
       <td><span class="badge ${badge}">${label}</span></td>
       <td>${prisotnostBtn}</td>
