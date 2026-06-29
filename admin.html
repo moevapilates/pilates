@@ -255,13 +255,8 @@ try{
     <span id="paketiResult" style="margin-left:10px;font-size:13px;color:var(--success)"></span>
   </div>
 
-  <div class="setup-banner" style="margin-top:16px">
-    <strong>⚙ Napredno — spremeni povezavo (samo če je treba)</strong>
-    Če bi kdaj zamenjala Apps Script, prilepi nov URL:<br>
-    <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
-    <button class="btn btn-sage" onclick="saveApiUrl()" style="margin-top:4px">Shrani URL in testiraj</button>
-    <div id="testResult" style="margin-top:10px;font-size:13px"></div>
-  </div>
+  <input type="hidden" id="apiUrlInput">
+  <div id="testResult" style="display:none"></div>
 </div>
 
 <!-- DASHBOARD -->
