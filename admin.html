@@ -185,6 +185,7 @@ function checkPassword(){
     document.getElementById('lockScreen').style.display='none';
     try{ sessionStorage.setItem('moeva_unlocked','1'); }catch(e){}
     loadDashboard(); // takoj naloži podatke
+    loadSettings();  // naloži pakete za modal
   } else {
     document.getElementById('lockError').style.display='block';
     document.getElementById('lockPassword').value='';
@@ -226,6 +227,32 @@ try{
     <strong>Tvoji linki:</strong><br>
     Rezervacije za stranke: <code>moevapilates.github.io/pilates/booking.html</code><br>
     Link in bio (Instagram): <code>moevapilates.github.io/pilates/linkinbio.html</code>
+  </div>
+
+  <!-- PRAVILO ODPOVEDI -->
+  <div class="setup-banner" style="margin-top:16px;background:white;border-color:var(--border)">
+    <strong>⏱ Pravilo odpovedi</strong>
+    Koliko ur pred treningom lahko stranka še odpove:
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+      <input type="number" id="setOdpovedUre" min="0" max="72" style="width:90px;padding:11px;border:1px solid var(--border);border-radius:8px;font-size:16px">
+      <span style="font-size:13px;color:var(--accent)">ur pred treningom</span>
+    </div>
+    <button class="btn btn-sage" onclick="shraniOdpoved()" style="margin-top:12px">Shrani pravilo</button>
+    <span id="odpovedResult" style="margin-left:10px;font-size:13px;color:var(--success)"></span>
+  </div>
+
+  <!-- PAKETI -->
+  <div class="setup-banner" style="margin-top:16px;background:white;border-color:var(--border)">
+    <strong>📦 Paketi obiskov</strong>
+    Uredi obstoječe ali dodaj svoje pakete. Število = koliko obiskov vsebuje.
+    <div id="paketiSeznam" style="margin-top:12px"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <input type="text" id="novPaketIme" placeholder="Ime (npr. 16× mesečno)" style="flex:1;min-width:160px;padding:11px;border:1px solid var(--border);border-radius:8px;font-size:16px">
+      <input type="number" id="novPaketUre" placeholder="Obiski" min="1" style="width:100px;padding:11px;border:1px solid var(--border);border-radius:8px;font-size:16px">
+      <button class="btn btn-outline" onclick="dodajPaket()">+ Dodaj</button>
+    </div>
+    <button class="btn btn-sage" onclick="shraniPakete()" style="margin-top:12px">Shrani pakete</button>
+    <span id="paketiResult" style="margin-left:10px;font-size:13px;color:var(--success)"></span>
   </div>
 
   <div class="setup-banner" style="margin-top:16px">
@@ -646,7 +673,8 @@ function showPage(name, el) {
     slots: loadSlots,
     bookings: loadBookings,
     payments: loadPayments,
-    stats: loadStats
+    stats: loadStats,
+    setup: loadSettings
   };
   if(loaders[name]) loaders[name]();
 }
@@ -750,9 +778,9 @@ async function saveClient() {
 function paketNastaviUre() {
   const paket = document.getElementById('clientPackage').value;
   const ureField = document.getElementById('clientUre');
-  const map = {'4× mesečno':4, '8× mesečno':8, '12× mesečno':12};
-  if(map[paket]!==undefined && ureField.value===''){
-    ureField.value = map[paket];
+  const najden = trenutniPaketi.find(p=>p.ime===paket);
+  if(najden && ureField.value===''){
+    ureField.value = najden.ure;
   }
 }
 function editClient(id) {
@@ -1061,6 +1089,81 @@ async function saveRecurring() {
   loadBookings();
 }
 
+// ── NASTAVITVE (pravilo odpovedi + paketi) ───────────────────
+let trenutniPaketi = []; // [{ime, ure}]
+
+async function loadSettings() {
+  try {
+    const r = await fetch(API_URL + '?action=getSettings');
+    const s = await r.json();
+    document.getElementById('setOdpovedUre').value = s.odpoved_ure ?? 4;
+    trenutniPaketi = s.paketi || [];
+    renderPaketiSeznam();
+    posodobiPaketSelect();
+  } catch(e) {
+    console.log('Nastavitve napaka:', e.message);
+  }
+}
+
+function renderPaketiSeznam() {
+  const el = document.getElementById('paketiSeznam');
+  if(!trenutniPaketi.length){ el.innerHTML='<div class="td-muted" style="font-size:13px">Ni paketov.</div>'; return; }
+  el.innerHTML = trenutniPaketi.map((p,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border)">
+      <span class="badge badge-confirmed">${p.ime}</span>
+      <span style="font-size:13px;color:var(--accent)">${p.ure} obiskov</span>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="odstraniPaket(${i})">✕</button>
+    </div>`).join('');
+}
+
+function dodajPaket() {
+  const ime = document.getElementById('novPaketIme').value.trim();
+  const ure = parseInt(document.getElementById('novPaketUre').value);
+  if(!ime || !ure){ alert('Vnesi ime in število obiskov.'); return; }
+  trenutniPaketi.push({ime, ure});
+  document.getElementById('novPaketIme').value='';
+  document.getElementById('novPaketUre').value='';
+  renderPaketiSeznam();
+}
+
+function odstraniPaket(i) {
+  trenutniPaketi.splice(i,1);
+  renderPaketiSeznam();
+}
+
+async function shraniPakete() {
+  // Pretvori v string "ime:ure,ime:ure"
+  const str = trenutniPaketi.map(p=>`${p.ime}:${p.ure}`).join(',');
+  const r = await apiPost({action:'saveSettings', paketi: str});
+  if(r?.error){ alert('⚠ '+r.error); return; }
+  document.getElementById('paketiResult').textContent='✓ Shranjeno';
+  setTimeout(()=>document.getElementById('paketiResult').textContent='',2500);
+  posodobiPaketSelect();
+}
+
+async function shraniOdpoved() {
+  const ure = parseInt(document.getElementById('setOdpovedUre').value);
+  if(isNaN(ure) || ure<0){ alert('Vnesi veljavno število ur.'); return; }
+  const r = await apiPost({action:'saveSettings', odpoved_ure: ure});
+  if(r?.error){ alert('⚠ '+r.error); return; }
+  document.getElementById('odpovedResult').textContent='✓ Shranjeno';
+  setTimeout(()=>document.getElementById('odpovedResult').textContent='',2500);
+}
+
+// Posodobi spustni meni paketov v modalu stranke
+function posodobiPaketSelect() {
+  const sel = document.getElementById('clientPackage');
+  if(!sel) return;
+  const trenutna = sel.value;
+  let opts = '<option value="">— brez —</option>';
+  trenutniPaketi.forEach(p=>{
+    opts += `<option value="${p.ime}">${p.ime} (${p.ure} obiskov)</option>`;
+  });
+  opts += '<option value="Po dogovoru">Po dogovoru</option>';
+  sel.innerHTML = opts;
+  if(trenutna) sel.value = trenutna;
+}
+
 function noApi(tbodyId, cols) {
   document.getElementById(tbodyId).innerHTML=`<tr><td colspan="${cols}" style="text-align:center;padding:24px;color:#c17a6a">⚠ Najprej nastavi API URL v <strong>Nastavitvah</strong></td></tr>`;
 }
@@ -1164,7 +1267,7 @@ async function loadStats() {
 window.addEventListener('DOMContentLoaded', ()=>{
   let odklenjen=false;
   try{ odklenjen = sessionStorage.getItem('moeva_unlocked')==='1'; }catch(e){}
-  if(odklenjen) loadDashboard();
+  if(odklenjen){ loadDashboard(); loadSettings(); }
 });
 </script>
 </body>
