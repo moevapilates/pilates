@@ -167,7 +167,7 @@ input:focus{border-color:var(--sage);background:white}
   <img src="logo.jpg" alt="MOEVA PILATES" class="hero-logo">
   <h1>Rezerviraj <em>termin</em></h1>
   <div class="hero-sub">Pilates vadba za ženske · Lucija, Slovenija</div>
-  <div class="hero-sub" style="margin-top:5px;font-size:12px;opacity:.6">Odpoved možna do 4 ure pred treningom</div>
+  <div class="hero-sub" style="margin-top:5px;font-size:12px;opacity:.6" id="odpovedHint">Odpoved možna do 4 ure pred treningom</div>
 </div>
 
 <div class="a2hs-banner" id="a2hsBanner">
@@ -260,6 +260,7 @@ function dmy(d){
 }
 
 let weekOffset = 0, slots = [], selectedSlot = null, selectedWaitSlot = null;
+let ODPOVED_URE = 4; // privzeto, posodobi se iz nastavitev
 
 // Slovenski državni prazniki in dela prosti dnevi
 const PRAZNIKI = {
@@ -465,9 +466,9 @@ async function loadMyBookings() {
           <div class="my-booking-type">${slot.naziv||'Pilates'}</div>
         </div>
         <div style="text-align:right">
-          ${diffH>=4
+          ${diffH>=ODPOVED_URE
             ?`<button class="btn-cancel" onclick="cancelMyBooking('${b.id}')">Odpovej</button>`
-            :`<div class="cancel-blocked">🔒 Zaklenjena<br><span style="font-size:10px">manj kot 4h</span></div>`}
+            :`<div class="cancel-blocked">🔒 Zaklenjena<br><span style="font-size:10px">manj kot ${ODPOVED_URE}h</span></div>`}
         </div>
       </div>`;
     }).join('');
@@ -507,6 +508,13 @@ function dismissA2HS(){
 })();
 
 loadSlots();
+
+// Naloži nastavljivo pravilo odpovedi in posodobi besedilo
+fetch(API_URL+'?action=getSettings').then(r=>r.json()).then(s=>{
+  ODPOVED_URE = s.odpoved_ure || 4;
+  const el = document.getElementById('odpovedHint');
+  if(el) el.textContent = `Odpoved možna do ${ODPOVED_URE} ure pred treningom`;
+}).catch(()=>{});
 </script>
 </body>
 </html>
