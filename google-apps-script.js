@@ -9,7 +9,7 @@ const ADMIN_EMAIL = 'moeva.pilates@gmail.com';   // tvoj email za obvestila ✓
 const STUDIO_IME  = 'MOEVA PILATES';
 
 // Koliko ur pred treningom pošlji opomnik strankam
-const OPOMNIK_URE = 20; // večer prej (~20h pred terminom zjutraj)
+const OPOMNIK_URE = 12; // pošlji opomnik 12h pred treningom
 
 // Pri koliko preostalih urah paketa pošlji opozorilo
 const PAKET_OPOZORILO_URE = 2;
@@ -242,6 +242,9 @@ function getClients(ss) {
 function addClient(ss, data) {
   const sheet = ss.getSheetByName(SHEETS.clients);
   const id = uid();
+  const novaVrstica = sheet.getLastRow() + 1;
+  // Stolpec telefon (C = 3) naj bo TEKST, da se ohrani začetna nič
+  sheet.getRange(novaVrstica, 3).setNumberFormat('@');
   sheet.appendRow([
     id, data.ime, data.telefon||'', data.email||'',
     data.paket||'', data.ure_skupaj||0, 0,
@@ -259,14 +262,19 @@ function updateClient(ss, data) {
   const sheet = ss.getSheetByName(SHEETS.clients);
   const row = findRowById(sheet, data.id);
   if (row < 0) return { error: 'Stranka ni najdena' };
+  // Ohrani obstoječe porabljene ure, če niso poslane
+  const obstojeca = sheetToObjects(sheet).find(x => String(x.id) === String(data.id));
+  const porabljene = data.ure_porabljene!==undefined ? data.ure_porabljene : (obstojeca?.ure_porabljene||0);
+  // Stolpec telefon (C = 3) naj bo TEKST, da se ohrani začetna nič
+  sheet.getRange(row, 3).setNumberFormat('@');
   sheet.getRange(row, 2, 1, 7).setValues([[
     data.ime, data.telefon||'', data.email||'',
-    data.paket||'', data.ure_skupaj||0, data.ure_porabljene||0, data.opomba||''
+    data.paket||'', data.ure_skupaj||0, porabljene, data.opomba||''
   ]]);
   sendAdminEmail(`✏️ Stranka posodobljena: ${data.ime}`,
     emailTemplate('Podatki stranke posodobljeni','✏️',[
       ['Ime', data.ime], ['Paket', data.paket],
-      ['Ur skupaj', data.ure_skupaj||'—'], ['Ur porabljenih', data.ure_porabljene||0]
+      ['Obiski skupaj', data.ure_skupaj||'—'], ['Porabljeni', porabljene]
     ]));
   return { ok: true };
 }
@@ -626,9 +634,10 @@ function deletePayment(ss, data) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  1. OPOMNIK DAN PREJ — zaženi kot časovni sprožilec
+//  OPOMNIK ~12H PRED TRENINGOM — zaženi kot časovni sprožilec
 //     Apps Script → Ure → Dodaj sprožilec → sendDayBeforeReminders
-//     Nastavi: vsak dan ob 19:00–20:00
+//     Nastavi: VSAKO URO (Hour timer → Every hour)
+//     Pošlje opomnik strankam, katerih termin je čez ~12 ur.
 // ════════════════════════════════════════════════════════════
 
 function sendDayBeforeReminders() {
@@ -636,31 +645,35 @@ function sendDayBeforeReminders() {
   const slots = sheetToObjects(ss.getSheetByName(SHEETS.slots));
   const bookings = sheetToObjects(ss.getSheetByName(SHEETS.bookings));
 
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().slice(0,10);
-
-  // Najdi vse termine za jutri
-  const tomorrowSlots = slots.filter(s => s.datum === tomorrowStr && s.aktiven !== false && s.aktiven !== 'false');
-
-  if (!tomorrowSlots.length) return;
-
+  const zdaj = new Date();
   let skupajPoslano = 0;
 
-  tomorrowSlots.forEach(slot => {
-    // Najdi vse potrjene rezervacije za ta termin
-    const slotBookings = bookings.filter(b => b.slot_id === slot.id && b.status === 'potrjena');
+  slots.forEach(slot => {
+    if (!slot.datum || !slot.cas) return;
+    if (slot.aktiven === false || slot.aktiven === 'false') return;
 
+    // Sestavi datum+čas termina
+    const [y,m,d] = slot.datum.split('-').map(Number);
+    const [hh,mm] = slot.cas.split(':').map(Number);
+    const terminDT = new Date(y, m-1, d, hh, mm, 0);
+
+    // Koliko ur do termina
+    const urDoTermina = (terminDT - zdaj) / (1000*60*60);
+
+    // Pošlji če je med (OPOMNIK_URE - 0.5) in (OPOMNIK_URE + 0.5) ur
+    // → ujame 12h okno, če sprožilec teče vsako uro
+    if (urDoTermina < (OPOMNIK_URE - 0.5) || urDoTermina > (OPOMNIK_URE + 0.5)) return;
+
+    const slotBookings = bookings.filter(b => b.slot_id === slot.id && b.status === 'potrjena');
     slotBookings.forEach(b => {
       if (!b.email) return;
-      sendEmail(b.email, `Opomnik: jutri ob ${slot.cas} — ${STUDIO_IME}`,
-        emailTemplate('Opomnik za jutri 🌅','⏰',[
+      sendEmail(b.email, `Opomnik: trening ob ${slot.cas} — ${STUDIO_IME}`,
+        emailTemplate('Opomnik za trening 🌿','⏰',[
           ['Ime', b.ime],
-          ['Datum', `jutri, ${slot.datum}`],
+          ['Datum', fmtSlot(slot)],
           ['Čas', slot.cas],
-          ['Vrsta', slot.tip||'—'],
-          ['Naziv', slot.naziv||'—'],
-        ], 'Odpoved je možna do 4 ure pred treningom. Se vidimo! 🧘')
+          ['Naziv', slot.naziv||'Pilates'],
+        ], 'Vaš trening je čez približno 12 ur. Odpoved je možna do 4 ure pred treningom. Se vidimo! 🧘')
       );
       skupajPoslano++;
     });
@@ -668,7 +681,7 @@ function sendDayBeforeReminders() {
 
   // Obvestilo tebi koliko opomnikov je šlo ven
   if (skupajPoslano > 0) {
-    sendAdminEmail(`📨 Poslano ${skupajPoslano} opomnikov za jutri`,
+    sendAdminEmail(`📨 Poslano ${skupajPoslano} opomnikov`,
       emailTemplate('Opomniki poslani','📨',[
         ['Datum', tomorrowStr],
         ['Terminov', tomorrowSlots.length],
@@ -949,8 +962,12 @@ function generirajTermine() {
     const dan = d.getDay(); // 0=ned, 1=pon, ...
     if (!URNIK[dan]) continue; // samo pon-čet
 
-    const datumStr = Utilities.formatDate(d, 'GMT', 'yyyy-MM-dd');
-    const md = Utilities.formatDate(d, 'GMT', 'MM-dd');
+    // Sestavi datum ročno (brez časovnega pasu, da se dan ne premakne)
+    const datumStr = d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+    const md = String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
 
     // Preskoči praznike
     if (PRAZNIKI.indexOf(md) >= 0 || PRAZNIKI_DATUM.indexOf(datumStr) >= 0) {
@@ -1180,4 +1197,64 @@ function mesecniIzvoz() {
 
   Logger.log('✅ Izvoz ustvarjen: list "' + listIme + '". Prenesi ga preko Datoteka → Prenesi → Excel.');
   return { ok: true, list: listIme, rezervacij: monthBookings.length, placano: skupajPlacano };
+}
+
+// ════════════════════════════════════════════════════════════
+//  NASTAVI STOLPEC TELEFON KOT BESEDILO
+//  Zaženi ENKRAT — prepreči da Google briše začetne ničle
+//  Po tem ročno popravi obstoječe številke (dodaj manjkajoče 0)
+// ════════════════════════════════════════════════════════════
+
+function telefonKotBesedilo() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.clients);
+  // Stolpec C (telefon) = 3, vse vrstice
+  const lastRow = Math.max(sheet.getLastRow(), 100);
+  sheet.getRange(2, 3, lastRow, 1).setNumberFormat('@');
+  Logger.log('✅ Stolpec telefon nastavljen kot besedilo. Zdaj ročno dodaj manjkajoče začetne ničle.');
+  return { ok: true };
+}
+
+// ════════════════════════════════════════════════════════════
+//  MESEČNI RESET PAKETOV
+//  Zaženi avtomatsko 1. v mesecu (sprožilec).
+//  Resetira porabljene obiske na 0 (paket šteje od začetka).
+//  Neporabljeni obiski propadejo. Pošlje opomnik za plačilo.
+// ════════════════════════════════════════════════════════════
+
+function mesecniResetPaketov() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.clients);
+  const clients = sheetToObjects(sheet);
+
+  const head = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const porabCol = head.indexOf('ure_porabljene') + 1; // stolpec porabljenih
+
+  let resetiranih = 0;
+  const seznam = [];
+
+  clients.forEach(c => {
+    // Samo stranke s paketom z omejenim številom obiskov
+    if (c.paket && parseInt(c.ure_skupaj||0) > 0) {
+      const row = findRowById(sheet, c.id);
+      if (row > 0 && porabCol > 0) {
+        sheet.getRange(row, porabCol).setValue(0); // reset porabljenih
+        resetiranih++;
+        seznam.push(`${c.ime} — ${c.paket}`);
+      }
+    }
+  });
+
+  // Obvesti Evo
+  if (resetiranih > 0) {
+    sendAdminEmail(`🔄 Nov mesec — ${resetiranih} paketov resetiranih`,
+      emailTemplate('Mesečni reset paketov','🔄',[
+        ['Resetiranih', `${resetiranih} strank`],
+        ['Stranke', seznam.join('<br>')],
+        ['Opomba', 'Obiski so resetirani na polno. Stranke morajo plačati nov paket za ta mesec.']
+      ], 'Ne pozabi pobrati plačil za nov mesec! 🌿'));
+  }
+
+  Logger.log(`✅ Resetiranih ${resetiranih} paketov za nov mesec.`);
+  return { ok: true, resetiranih };
 }
