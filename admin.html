@@ -121,12 +121,27 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage);background:whit
   .stat-value{font-size:24px;overflow-wrap:anywhere}
   .setup-banner{padding:14px}
   .setup-banner input[type=number],.setup-banner input[type=text]{font-size:16px}
+  /* Koledar naj bo na sredini zaslona (da ne uhaja čez rob) */
+  .cal-pop.open{
+    position:fixed;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    width:calc(100vw - 40px);
+    max-width:340px;
+    z-index:9998;
+  }
+  .cal-backdrop{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.35);
+    z-index:9997;
+  }
 }
 @media(min-width:700px){
   header{padding:18px 28px}
   header h1{font-size:24px}
   .tabs{padding:0 28px}
   main{padding:24px 28px}
+  .cal-backdrop{display:none}
   .stats{grid-template-columns:repeat(4,1fr);gap:14px}
   .grid2{grid-template-columns:1fr 1fr}
   table{min-width:0}
@@ -543,11 +558,16 @@ const CAL_DOW=['Pon','Tor','Sre','Čet','Pet','Sob','Ned'];
 function openCal(input){
   calTarget=input;
   // Zapri ostale
-  document.querySelectorAll('.cal-pop').forEach(p=>p.remove());
+  document.querySelectorAll('.cal-pop, .cal-backdrop').forEach(p=>p.remove());
   // Določi začetni mesec (iz obstoječe vrednosti ali danes)
   const iso=input.dataset.iso;
   let base=iso?new Date(iso+'T00:00:00'):new Date();
   calYear=base.getFullYear(); calMonth=base.getMonth();
+  // Temno ozadje (vidno samo na telefonu preko CSS)
+  const backdrop=document.createElement('div');
+  backdrop.className='cal-backdrop';
+  backdrop.onclick=()=>{document.querySelectorAll('.cal-pop, .cal-backdrop').forEach(p=>p.remove());document.removeEventListener('click', closeCalOutside);};
+  document.body.appendChild(backdrop);
   const pop=document.createElement('div');
   pop.className='cal-pop open';
   input.parentNode.appendChild(pop);
@@ -559,7 +579,7 @@ function openCal(input){
 }
 function closeCalOutside(e){
   if(!e.target.closest('.cal-pop') && !e.target.closest('.date-field input')){
-    document.querySelectorAll('.cal-pop').forEach(p=>p.remove());
+    document.querySelectorAll('.cal-pop, .cal-backdrop').forEach(p=>p.remove());
     document.removeEventListener('click', closeCalOutside);
   }
 }
