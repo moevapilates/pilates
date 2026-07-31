@@ -186,22 +186,52 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage);background:whit
     <img src="logo.jpg" alt="MOEVA" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 18px;display:block;border:3px solid var(--sage-light)">
     <h2 style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400;margin-bottom:6px">MOEVA PILATES</h2>
     <p style="font-size:13px;color:var(--accent);margin-bottom:22px">Vnesite geslo za dostop</p>
-    <input type="password" id="lockPassword" placeholder="Geslo" autocomplete="current-password"
-      style="width:100%;padding:13px;border:1px solid var(--border);border-radius:10px;font-size:16px;font-family:'Inter',sans-serif;outline:none;text-align:center;margin-bottom:12px"
-      onkeydown="if(event.key==='Enter')checkPassword()">
+    <div style="position:relative;margin-bottom:12px">
+      <input type="password" id="lockPassword" placeholder="Geslo" autocomplete="current-password"
+        style="width:100%;padding:13px 46px 13px 13px;border:1px solid var(--border);border-radius:10px;font-size:16px;font-family:'Inter',sans-serif;outline:none;text-align:center"
+        onkeydown="if(event.key==='Enter')checkPassword()">
+      <button type="button" onclick="togglePassword()" id="eyeBtn" aria-label="Pokaži geslo"
+        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;padding:8px;min-height:40px;min-width:40px;line-height:1;color:var(--accent)">👁</button>
+    </div>
     <button onclick="checkPassword()" style="width:100%;padding:14px;border-radius:10px;border:none;background:var(--charcoal);color:white;font-size:15px;font-family:'Inter',sans-serif;font-weight:500;cursor:pointer;min-height:50px">Odkleni →</button>
+    <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;font-size:13px;color:var(--accent);cursor:pointer;user-select:none">
+      <input type="checkbox" id="stay30" style="width:18px;height:18px;accent-color:var(--sage);cursor:pointer">
+      Ostani prijavljen 30 dni
+    </label>
     <p id="lockError" style="font-size:13px;color:var(--error);margin-top:12px;display:none">Napačno geslo. Poskusite znova.</p>
   </div>
 </div>
 
 <script>
 // ── ZAŠČITA Z GESLOM ──────────────────────────────────────────
-const ADMIN_PASSWORD = 'Moeva.Pilates2026';
+const ADMIN_PASSWORD = '2026';
+function togglePassword(){
+  const inp = document.getElementById('lockPassword');
+  const btn = document.getElementById('eyeBtn');
+  if(inp.type === 'password'){
+    inp.type = 'text';
+    btn.textContent = '🙈';
+    btn.setAttribute('aria-label','Skrij geslo');
+  } else {
+    inp.type = 'password';
+    btn.textContent = '👁';
+    btn.setAttribute('aria-label','Pokaži geslo');
+  }
+  inp.focus();
+}
 function checkPassword(){
   const val = document.getElementById('lockPassword').value;
   if(val === ADMIN_PASSWORD){
     document.getElementById('lockScreen').style.display='none';
-    try{ sessionStorage.setItem('moeva_unlocked','1'); }catch(e){}
+    const stay30 = document.getElementById('stay30')?.checked;
+    try{
+      sessionStorage.setItem('moeva_unlocked','1');
+      if(stay30){
+        // Shrani datum poteka (30 dni od zdaj)
+        const potek = Date.now() + 30*24*60*60*1000;
+        localStorage.setItem('moeva_unlocked_until', String(potek));
+      }
+    }catch(e){}
     loadDashboard(); // takoj naloži podatke
     loadSettings();  // naloži pakete za modal
   } else {
@@ -209,9 +239,23 @@ function checkPassword(){
     document.getElementById('lockPassword').value='';
   }
 }
-// Ostani odklenjen dokler je zavihek odprt
+// Preveri ali je admin odklenjen (seja ALI 30-dnevna prijava)
+function jeOdklenjen(){
+  try{
+    if(sessionStorage.getItem('moeva_unlocked')==='1') return true;
+    const potek = parseInt(localStorage.getItem('moeva_unlocked_until')||'0');
+    if(potek && Date.now() < potek){
+      sessionStorage.setItem('moeva_unlocked','1'); // osveži sejo
+      return true;
+    }
+    // Poteklo — pobriši
+    if(potek) localStorage.removeItem('moeva_unlocked_until');
+  }catch(e){}
+  return false;
+}
+// Ob nalaganju: če je odklenjen, skrij lock screen
 try{
-  if(sessionStorage.getItem('moeva_unlocked')==='1'){
+  if(jeOdklenjen()){
     document.getElementById('lockScreen').style.display='none';
   }
 }catch(e){}
@@ -1281,11 +1325,9 @@ async function loadStats() {
 }
 
 // ── ZAGON ─────────────────────────────────────────────────────
-// Če je admin že odklenjen (zavihek ostal odprt), takoj naloži podatke
+// Če je admin že odklenjen (seja ali 30-dnevna prijava), takoj naloži podatke
 window.addEventListener('DOMContentLoaded', ()=>{
-  let odklenjen=false;
-  try{ odklenjen = sessionStorage.getItem('moeva_unlocked')==='1'; }catch(e){}
-  if(odklenjen){ loadDashboard(); loadSettings(); }
+  if(jeOdklenjen()){ loadDashboard(); loadSettings(); }
 });
 </script>
 </body>
