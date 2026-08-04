@@ -696,8 +696,14 @@ function clearCal(id){ setCalValue(id,''); }
 async function api(action, params={}) {
   if(!API_URL) return null;
   const url = API_URL + '?action=' + action + Object.entries(params).map(([k,v])=>`&${k}=${encodeURIComponent(v)}`).join('');
-  const r = await fetch(url);
-  return r.json();
+  try {
+    const r = await fetch(url);
+    if(!r.ok) { console.warn('API '+action+' status '+r.status); return null; }
+    return await r.json();
+  } catch(e) {
+    console.warn('API '+action+' napaka: '+e.message);
+    return null;
+  }
 }
 async function apiPost(data) {
   if(!API_URL) return null;
@@ -1098,7 +1104,18 @@ async function loadDashboard() {
     api('getDashboard'),api('getBookings'),api('getPayments'),
     api('getClients'),api('getSlots')
   ]);
-  if(!dash){document.getElementById('stat-clients').textContent='?';return;}
+  // Če dashboard ni prišel, poskusi še enkrat (včasih prvi klic po spanju pade)
+  if(!dash){
+    const dash2 = await api('getDashboard');
+    if(!dash2){
+      document.getElementById('connStatus').textContent='⚡ Ni povezave';
+      document.getElementById('connStatus').className='conn-status conn-err';
+      document.getElementById('stat-clients').textContent='—';
+      return;
+    }
+    // Drugi poskus uspel — naloži znova
+    return loadDashboard();
+  }
   clients=c||[]; bookings=b||[]; payments=p||[]; slots=s||[];
   document.getElementById('stat-clients').textContent=dash.stevilo_strank||0;
   document.getElementById('stat-week').textContent=dash.termini_teden||0;
