@@ -359,7 +359,7 @@ function slotCard(s) {
 
 // ── BOOKING ──────────────────────────────────────────────────
 function selectSlot(id) {
-  selectedSlot = slots.find(s=>s.id===id); if(!selectedSlot) return;
+  selectedSlot = slots.find(s=>String(s.id)===String(id)); if(!selectedSlot) return;
   const d = new Date(selectedSlot.datum);
   document.getElementById('slotSummary').textContent =
     `${DAYS_SL[d.getDay()]}, ${dmy(d)} — ${selectedSlot.cas}${selectedSlot.naziv?' · '+selectedSlot.naziv:''}`;
@@ -401,7 +401,7 @@ async function submitBooking() {
 
 // ── ČAKALNA LISTA ─────────────────────────────────────────────
 function selectWaitlist(id) {
-  selectedWaitSlot=slots.find(s=>s.id===id); if(!selectedWaitSlot) return;
+  selectedWaitSlot=slots.find(s=>String(s.id)===String(id)); if(!selectedWaitSlot) return;
   const d=new Date(selectedWaitSlot.datum);
   document.getElementById('waitlistSummary').textContent=
     `${DAYS_SL[d.getDay()]}, ${dmy(d)} — ${selectedWaitSlot.cas}`;
@@ -466,7 +466,7 @@ async function loadMyBookings() {
     if(!mine.length){res.innerHTML='<div style="font-size:13px;color:#aaa;padding:8px 0">Ni aktivnih rezervacij za ta email/telefon.</div>';return;}
     const now=new Date();
     res.innerHTML=mine.map(b=>{
-      const slot=rs.find(s=>s.id===b.slot_id); if(!slot) return '';
+      const slot=rs.find(s=>String(s.id)===String(b.slot_id)); if(!slot) return '';
       const slotDT=new Date(slot.datum+'T'+(slot.cas||'00:00')+':00');
       const diffH=(slotDT-now)/(1000*60*60);
       const df=`${DAYS_SL[slotDT.getDay()]}, ${dmy(slotDT)}`;
