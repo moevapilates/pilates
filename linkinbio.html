@@ -116,24 +116,6 @@ body {
 .link-label { flex: 1; }
 .link-arrow { color: #ccc; font-size: 14px; }
 
-/* INFO STRIP */
-.info-strip {
-  display: flex;
-  gap: 0;
-  border-top: 1px solid #F0EBE3;
-  border-bottom: 1px solid #F0EBE3;
-  margin: 8px 0 0;
-}
-.info-item {
-  flex: 1;
-  padding: 12px 8px;
-  text-align: center;
-  border-right: 1px solid #F0EBE3;
-}
-.info-item:last-child { border-right: none; }
-.info-icon { font-size: 16px; margin-bottom: 3px; }
-.info-text { font-size: 11px; color: #888; line-height: 1.3; }
-
 /* URNIK PREVIEW */
 .urnik-section { padding: 16px 20px 4px; }
 .section-label {
@@ -144,7 +126,7 @@ body {
   font-weight: 500;
   margin-bottom: 10px;
 }
-.urnik-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+.urnik-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
 .urnik-day {
   background: #F5F0EA;
   border-radius: 8px;
@@ -202,30 +184,14 @@ body {
 
   <!-- GLAVNA AKCIJA -->
   <a href="booking.html" class="btn-main">
-    🧘 Rezerviraj termin
+    Rezerviraj termin
     <div class="btn-main-sub">Prosti termini — takojšnja potrditev</div>
   </a>
-
-  <!-- INFO STRIP -->
-  <div class="info-strip">
-    <div class="info-item">
-      <div class="info-icon">📍</div>
-      <div class="info-text">Portorož<br>Slovenija</div>
-    </div>
-    <div class="info-item">
-      <div class="info-icon">🧘</div>
-      <div class="info-text">STOTT<br>PILATES</div>
-    </div>
-  </div>
 
   <!-- URNIK -->
   <div class="urnik-section">
     <div class="section-label">Tedenski urnik</div>
     <div class="urnik-grid">
-      <div class="urnik-day">
-        <div class="urnik-dan">Pon</div>
-        <div class="urnik-cas">20:00</div>
-      </div>
       <div class="urnik-day">
         <div class="urnik-dan">Tor</div>
         <div class="urnik-cas">20:00</div>
