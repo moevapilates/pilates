@@ -374,6 +374,9 @@ try{
 <div class="page" id="page-bookings">
   <div class="section-header"><div class="section-title">Rezervacije <span id="bookingsCount" style="font-size:13px;color:var(--accent);font-weight:400"></span></div></div>
   <div class="filter-row">
+    <select id="bookingClientFilter" onchange="renderBookings()" style="min-width:160px">
+      <option value="">Vse stranke</option>
+    </select>
     <select id="bookingPeriodFilter" onchange="renderBookings()">
       <option value="upcoming">Prihajajoče</option>
       <option value="today">Danes</option>
@@ -386,7 +389,7 @@ try{
     <select id="bookingStatusFilter" onchange="renderBookings()">
       <option value="">Vsi statusi</option><option value="potrjena">Potrjena</option><option value="odpovedana">Odpovedana</option>
     </select>
-    <button class="btn btn-outline btn-sm" onclick="clearCal('bookingDateFilter');document.getElementById('bookingStatusFilter').value='';document.getElementById('bookingPeriodFilter').value='upcoming';renderBookings()">Ponastavi</button>
+    <button class="btn btn-outline btn-sm" onclick="clearCal('bookingDateFilter');document.getElementById('bookingStatusFilter').value='';document.getElementById('bookingPeriodFilter').value='upcoming';document.getElementById('bookingClientFilter').value='';renderBookings()">Ponastavi</button>
   </div>
   <div class="table-wrap"><table>
     <thead><tr><th>Stranka</th><th>Kontakt</th><th>Termin</th><th>Status</th><th>Prisotnost</th><th></th></tr></thead>
@@ -812,6 +815,7 @@ function renderClients() {
     <td class="td-muted">${c.opomba||'—'}</td>
     <td><div class="actions-cell">
       <button class="btn btn-sage btn-sm" onclick="openRecurring('${c.id}','${(c.ime||'').replace(/'/g,'')}')" title="Ponavljajoča rezervacija">🔁</button>
+      <button class="btn btn-outline btn-sm" onclick="pokaziRezervacijeStranke('${(c.ime||'').replace(/'/g,'')}')" title="Poglej rezervacije">📅</button>
       <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')">Uredi</button>
       <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">✕</button>
     </div></td>
@@ -964,26 +968,69 @@ async function deleteSlot(id) {
 
 // ── BOOKINGS ──────────────────────────────────────────────────
 async function loadBookings() {
-  const [b,s]=await Promise.all([api('getBookings'),api('getSlots')]);
+  const [b,s,c]=await Promise.all([api('getBookings'),api('getSlots'),api('getClients')]);
   if(!b){noApi('bookingsTable',6);return;}
-  bookings=b; slots=s||slots;
+  bookings=b; slots=s||slots; if(c) clients=c;
+  napolniStrankeFilter();
   renderBookings();
+}
+// Napolni spustni meni strank v Rezervacijah
+function napolniStrankeFilter() {
+  const sel=document.getElementById('bookingClientFilter');
+  if(!sel) return;
+  const trenutna=sel.value;
+  // Zberi imena iz strank + iz rezervacij (za primer starih imen)
+  const imena=new Set();
+  (clients||[]).forEach(c=>{if(c.ime)imena.add(c.ime);});
+  const urejena=[...imena].sort((a,b)=>a.localeCompare(b,'sl'));
+  sel.innerHTML='<option value="">Vse stranke</option>'+
+    urejena.map(i=>`<option value="${i.replace(/"/g,'&quot;')}">${i}</option>`).join('');
+  if(trenutna) sel.value=trenutna;
 }
 function getSlotInfo(slotId) {
   const s=slots.find(x=>String(x.id)===String(slotId));
   if(!s)return'—';
   return fmtDMYDan(s.datum)+' '+s.cas;
 }
+// Skoči na Rezervacije in pokaži vse za izbrano stranko
+function pokaziRezervacijeStranke(ime) {
+  // Preklopi na zavihek Rezervacije
+  const tab=document.querySelector('.tab[data-page="bookings"]');
+  showPage('bookings', tab);
+  // Nastavi filtre: ta stranka, vsa zgodovina
+  setTimeout(()=>{
+    const cf=document.getElementById('bookingClientFilter');
+    const pf=document.getElementById('bookingPeriodFilter');
+    if(cf){ cf.value=ime; }
+    if(pf){ pf.value='all'; }
+    renderBookings();
+  },150);
+}
 function renderBookings() {
   const df=getCalValue('bookingDateFilter');
   const sf=document.getElementById('bookingStatusFilter')?.value;
   const pf=document.getElementById('bookingPeriodFilter')?.value||'upcoming';
+  const cf=document.getElementById('bookingClientFilter')?.value;
   const now = new Date();
   const danesStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 
   let list=[...bookings];
   if(sf)list=list.filter(b=>b.status===sf);
   if(df)list=list.filter(b=>{const s=slots.find(x=>String(x.id)===String(b.slot_id));return s&&s.datum===df;});
+
+  // Filter po stranki (po imenu ali kontaktu — ujame tudi stara imena)
+  if(cf){
+    const stranka=(clients||[]).find(c=>c.ime===cf);
+    const norm=t=>String(t||'').replace(/[\s\/+-]/g,'').replace(/^0+/,'');
+    const telN=stranka?norm(stranka.telefon):'';
+    const emailN=stranka?String(stranka.email||'').trim().toLowerCase():'';
+    list=list.filter(b=>{
+      if(b.ime===cf) return true;
+      if(telN && norm(b.telefon)===telN) return true;
+      if(emailN && String(b.email||'').trim().toLowerCase()===emailN) return true;
+      return false;
+    });
+  }
 
   // Filter po obdobju (samo če ni izbran konkreten datum)
   if(!df){
