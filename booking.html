@@ -166,7 +166,7 @@ input:focus{border-color:var(--sage);background:white}
 <div class="hero">
   <img src="logo.jpg" alt="MOEVA PILATES" class="hero-logo">
   <h1>Rezerviraj <em>termin</em></h1>
-  <div class="hero-sub">Pilates vadba za ženske · Lucija, Slovenija</div>
+  <div class="hero-sub">Pilates vadba za ženske · Portorož in Izola, Slovenija</div>
   <div class="hero-sub" style="margin-top:5px;font-size:12px;opacity:.6" id="odpovedHint">Odpoved možna do 4 ure pred treningom</div>
 </div>
 
@@ -210,6 +210,21 @@ input:focus{border-color:var(--sage);background:white}
 
 <div class="cal-wrap" id="calWrap">
   <div class="loading-msg">Nalagam termine...</div>
+</div>
+
+<!-- LEGENDA LOKACIJ -->
+<div style="max-width:520px;margin:16px auto 0;padding:14px 18px;background:white;border:1px solid var(--border);border-radius:12px">
+  <div style="font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Lokacije</div>
+  <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:16px;height:16px;border-radius:4px;background:#8A9E8C;flex-shrink:0"></span>
+      <span><strong>Tonus fit Marina, Portorož</strong> · torki in četrtki 20:00</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:16px;height:16px;border-radius:4px;background:#C08552;flex-shrink:0"></span>
+      <span><strong>Trim kabinet – teniška igrišča, Portorož</strong> · srede 18:00</span>
+    </div>
+  </div>
 </div>
 
 <!-- BOOKING FORM -->
@@ -343,14 +358,28 @@ function renderCalendar(dates) {
   }).join('')}</div>`;
 }
 
+// Določi lokacijo termina glede na dan in čas
+function slotLokacija(s) {
+  const d = new Date(s.datum + 'T00:00:00');
+  const dan = d.getDay(); // 0=ned,1=pon,2=tor,3=sre,4=čet
+  const cas = s.cas || '';
+  // Sreda 18:00 → Trim kabinet
+  if (dan === 3) return { ime: 'Trim kabinet, Portorož', barva: '#C08552' };
+  // Torek in četrtek 20:00 → Tonus fit Marina
+  if (dan === 2 || dan === 4) return { ime: 'Tonus fit Marina, Portorož', barva: '#8A9E8C' };
+  // Ostalo (če bi bilo)
+  return { ime: '', barva: '#B0A99F' };
+}
+
 function slotCard(s) {
   const free=parseInt(s.prostih||0), max=parseInt(s.max_mest||1), full=free<=0;
   let cls='spots-free', lbl=`${free}/${max} prosto`;
   if(full){cls='spots-full';lbl='Zasedeno';}
   else if(free===1){cls='spots-last';lbl='Zadnje mesto!';}
+  const loc = slotLokacija(s);
   const waitBtn = full
     ? `<div style="margin-top:8px"><button onclick="event.stopPropagation();selectWaitlist('${s.id}')" style="width:100%;padding:6px;border-radius:5px;border:1px solid #8A9E8C;background:white;color:#8A9E8C;font-size:11px;font-family:Inter,sans-serif;cursor:pointer;font-weight:500">📋 Čakalna lista${s.cakalna>0?' ('+s.cakalna+')':''}</button></div>` : '';
-  return `<div class="slot-card${full?' full':''}"${!full?` onclick="selectSlot('${s.id}')"`:''}>
+  return `<div class="slot-card${full?' full':''}" style="border-left:4px solid ${loc.barva}"${!full?` onclick="selectSlot('${s.id}')"`:''}>
     <div class="slot-time">${s.cas||'—'}</div>
     ${s.naziv?`<div class="slot-naziv">${s.naziv}</div>`:''}
     <span class="slot-spots ${cls}">${lbl}</span>${waitBtn}
@@ -361,8 +390,10 @@ function slotCard(s) {
 function selectSlot(id) {
   selectedSlot = slots.find(s=>String(s.id)===String(id)); if(!selectedSlot) return;
   const d = new Date(selectedSlot.datum);
-  document.getElementById('slotSummary').textContent =
-    `${DAYS_SL[d.getDay()]}, ${dmy(d)} — ${selectedSlot.cas}${selectedSlot.naziv?' · '+selectedSlot.naziv:''}`;
+  const loc = slotLokacija(selectedSlot);
+  document.getElementById('slotSummary').innerHTML =
+    `${DAYS_SL[d.getDay()]}, ${dmy(d)} — ${selectedSlot.cas}${selectedSlot.naziv?' · '+selectedSlot.naziv:''}` +
+    (loc.ime?`<div style="margin-top:6px;font-size:12px;color:${loc.barva};font-weight:600">📍 ${loc.ime}</div>`:'');
   document.getElementById('formView').style.display='block';
   document.getElementById('successView').classList.remove('show');
   document.getElementById('formPanel').classList.add('open');
