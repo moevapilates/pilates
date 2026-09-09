@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <title>Rezervacija termina — MOEVA PILATES</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&family=Montserrat:wght@300;400;500&display=swap');
 :root{
   --sage:#8A9E8C;--sage-light:#C5D4C6;--sage-pale:#EEF3EE;
   --charcoal:#2C2C2C;--warm-white:#FAF9F7;--sand:#D4C9B8;
@@ -26,7 +26,10 @@ body{font-family:'Inter',sans-serif;background:var(--warm-white);color:var(--cha
 /* HERO */
 .hero{background:var(--charcoal);color:var(--warm-white);padding:calc(40px + env(safe-area-inset-top)) 24px 36px;text-align:center}
 .hero-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--sage-light);margin-bottom:14px;font-weight:400}
-.hero-logo{width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 16px;display:block;border:2px solid var(--sage-light);box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.moeva-logo{text-align:center;margin:0 auto 18px}
+.moeva-name{font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:400;letter-spacing:.18em;line-height:1;color:var(--warm-white);padding-left:.18em}
+.moeva-line{width:200px;height:1px;background:rgba(255,255,255,.5);margin:12px auto}
+.moeva-sub{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:400;letter-spacing:.42em;color:var(--warm-white);opacity:.7;padding-left:.42em}
 .hero h1{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:300;line-height:1.1;margin-bottom:10px}
 .hero h1 em{color:var(--sage-light);font-style:italic}
 .hero-sub{font-size:13px;color:var(--sand);font-weight:300;letter-spacing:.03em;margin-top:8px;line-height:1.4}
@@ -164,19 +167,31 @@ input:focus{border-color:var(--sage);background:white}
 <script>const API_URL = 'https://script.google.com/macros/s/AKfycby1ad2kCxstwlDmG-Yzb9tl3qsJuAclPMX_2QP7vrV05M5rE9BKdm1PjVideHagismNCQ/exec';</script>
 
 <div class="hero">
-  <img src="logo.jpg" alt="MOEVA PILATES" class="hero-logo">
+  <div class="moeva-logo">
+    <img src="logo-white.png" alt="MOEVA — Move with Eva" style="width:200px;max-width:70%;height:auto;display:block;margin:0 auto">
+  </div>
   <h1>Rezerviraj <em>termin</em></h1>
   <div class="hero-sub">Pilates vadba za ženske · Portorož in Izola, Slovenija</div>
   <div class="hero-sub" style="margin-top:5px;font-size:12px;opacity:.6" id="odpovedHint">Odpoved možna do 4 ure pred treningom</div>
 </div>
 
-<!-- PASICA: brezplačni termini (samo določene dni) -->
+<!-- PASICA: brezplačni termini (do 10.9.) -->
 <div id="freeBanner" style="display:none">
   <div style="max-width:520px;margin:14px auto 0;padding:16px 20px;background:linear-gradient(135deg,#8A9E8C,#6d8470);border-radius:16px;text-align:center;color:#fff;box-shadow:0 8px 24px rgba(138,158,140,.35);position:relative;overflow:hidden">
     <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:rgba(255,255,255,.12);border-radius:50%"></div>
     <div style="position:absolute;bottom:-30px;left:-15px;width:70px;height:70px;background:rgba(255,255,255,.1);border-radius:50%"></div>
     <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;letter-spacing:.02em;position:relative;margin-top:4px">Brezplačni termini</div>
     <div style="font-size:13px;opacity:.95;margin-top:5px;position:relative;line-height:1.5">Izkoristi pričetek sezone 2026/27 in se nam pridruži.<br>Rezerviraj svoje mesto!</div>
+  </div>
+</div>
+
+<!-- PASICA: zaslužen odmor (14.-17.9.) -->
+<div id="restBanner" style="display:none">
+  <div style="max-width:520px;margin:14px auto 0;padding:16px 20px;background:linear-gradient(135deg,#C08552,#a06b3f);border-radius:16px;text-align:center;color:#fff;box-shadow:0 8px 24px rgba(192,133,82,.3);position:relative;overflow:hidden">
+    <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:rgba(255,255,255,.12);border-radius:50%"></div>
+    <div style="position:absolute;bottom:-30px;left:-15px;width:70px;height:70px;background:rgba(255,255,255,.1);border-radius:50%"></div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;letter-spacing:.02em;position:relative;margin-top:4px">Zaslužen odmor</div>
+    <div style="font-size:13px;opacity:.95;margin-top:5px;position:relative;line-height:1.5">Se vidimo kmalu!</div>
   </div>
 </div>
 
@@ -557,6 +572,18 @@ loadSlots();
   const konec = new Date(2026, 8, 10, 23, 59); // 10.9.2026
   if(danes <= konec){
     const b = document.getElementById('freeBanner');
+    if(b) b.style.display = 'block';
+  }
+})();
+
+// Pasica "Zaslužen odmor" — vidna 11.9. do vključno 17.9.2026
+(function(){
+  const danes = new Date();
+  danes.setHours(0,0,0,0);
+  const zacetek = new Date(2026, 8, 11, 0, 0);  // 11.9.2026
+  const konec = new Date(2026, 8, 17, 23, 59);  // 17.9.2026
+  if(danes >= zacetek && danes <= konec){
+    const b = document.getElementById('restBanner');
     if(b) b.style.display = 'block';
   }
 })();
