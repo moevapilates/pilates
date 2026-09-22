@@ -144,7 +144,8 @@ function setupSheets() {
     Termini:      ['id','datum','cas','tip','max_mest','naziv','aktiven'],
     Rezervacije:  ['id','slot_id','client_id','ime','email','telefon','datum_rezervacije','status','prisotnost'],
     Placila:      ['id','client_id','opis','znesek','rok','status','datum_placila'],
-    CakalnaLista: ['id','slot_id','ime','email','telefon','datum_prijave']
+    CakalnaLista: ['id','slot_id','ime','email','telefon','datum_prijave'],
+    Nastavitve:   ['kljuc','vrednost']
   };
   Object.entries(defs).forEach(([name, headers]) => {
     let sheet = ss.getSheetByName(name);
@@ -154,7 +155,23 @@ function setupSheets() {
       sheet.getRange(1,1,1,headers.length).setFontWeight('bold').setBackground('#8A9E8C').setFontColor('white');
     }
   });
+  // Privzete nastavitve
+  nastaviPrivzete(ss);
   return { ok: true, message: 'Listi pripravljeni!' };
+}
+
+// Privzete vrednosti nastavitev (če še ne obstajajo)
+function nastaviPrivzete(ss) {
+  const sheet = ss.getSheetByName('Nastavitve');
+  if (!sheet) return;
+  const obstojece = sheetToObjects(sheet).map(r => r.kljuc);
+  const privzete = {
+    'odpoved_ure': '4',
+    'paketi': '4× mesečno:4,8× mesečno:8,12× mesečno:12'
+  };
+  Object.entries(privzete).forEach(([k,v]) => {
+    if (obstojece.indexOf(k) < 0) sheet.appendRow([k, v]);
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -200,6 +217,7 @@ function doGet(e) {
     else if (action === 'getPayments')   result = getPayments(ss);
     else if (action === 'getDashboard')  result = getDashboard(ss);
     else if (action === 'getWaitlist')   result = getWaitlist(ss);
+    else if (action === 'getSettings')   result = getSettings(ss);
     else result = { error: 'Neznan ukaz' };
   } catch(err) { result = { error: err.message }; }
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
@@ -225,6 +243,7 @@ function doPost(e) {
     else if (action === 'addWaitlist')     result = addWaitlist(ss, data);
     else if (action === 'removeWaitlist')  result = removeWaitlist(ss, data);
     else if (action === 'oznaciPrisotnost') result = oznaciPrisotnost(ss, data);
+    else if (action === 'saveSettings')  result = saveSettings(ss, data);
     else if (action === 'ponavljajocaRezervacija') result = ponavljajocaRezervacija(ss, data);
     else result = { error: 'Neznan ukaz' };
   } catch(err) { result = { error: err.message }; }
@@ -242,14 +261,18 @@ function getClients(ss) {
 function addClient(ss, data) {
   const sheet = ss.getSheetByName(SHEETS.clients);
   const id = uid();
-  const novaVrstica = sheet.getLastRow() + 1;
-  // Stolpec telefon (C = 3) naj bo TEKST, da se ohrani začetna nič
-  sheet.getRange(novaVrstica, 3).setNumberFormat('@');
+  // Dodaj vrstico BREZ telefona
   sheet.appendRow([
-    id, data.ime, data.telefon||'', data.email||'',
+    id, data.ime, '', data.email||'',
     data.paket||'', data.ure_skupaj||0, 0,
     data.opomba||'', new Date().toISOString().slice(0,10)
   ]);
+  // Nato nastavi telefon kot BESEDILO (ohrani začetno nič)
+  const vrstica = sheet.getLastRow();
+  const telCell = sheet.getRange(vrstica, 3);
+  telCell.setNumberFormat('@');
+  telCell.setValue(String(data.telefon||''));
+
   sendAdminEmail(`👤 Nova stranka: ${data.ime}`,
     emailTemplate('Nova stranka dodana','👤',[
       ['Ime', data.ime], ['Telefon', data.telefon], ['Email', data.email],
@@ -265,18 +288,54 @@ function updateClient(ss, data) {
   // Ohrani obstoječe porabljene ure, če niso poslane
   const obstojeca = sheetToObjects(sheet).find(x => String(x.id) === String(data.id));
   const porabljene = data.ure_porabljene!==undefined ? data.ure_porabljene : (obstojeca?.ure_porabljene||0);
-  // Stolpec telefon (C = 3) naj bo TEKST, da se ohrani začetna nič
-  sheet.getRange(row, 3).setNumberFormat('@');
-  sheet.getRange(row, 2, 1, 7).setValues([[
-    data.ime, data.telefon||'', data.email||'',
-    data.paket||'', data.ure_skupaj||0, porabljene, data.opomba||''
+
+  // Vpiši vse RAZEN telefona
+  sheet.getRange(row, 2).setValue(data.ime);
+  sheet.getRange(row, 4, 1, 5).setValues([[
+    data.email||'', data.paket||'', data.ure_skupaj||0, porabljene, data.opomba||''
   ]]);
+  // Telefon posebej kot BESEDILO (ohrani začetno nič)
+  const telCell = sheet.getRange(row, 3);
+  telCell.setNumberFormat('@');
+  telCell.setValue(String(data.telefon||''));
+
+  // Če se je ime spremenilo, posodobi ga tudi v rezervacijah (poveži po telefonu ali emailu)
+  if (obstojeca && obstojeca.ime !== data.ime) {
+    posodobiImeVRezervacijah(ss, data.telefon, data.email, data.ime, obstojeca.ime);
+  }
+
   sendAdminEmail(`✏️ Stranka posodobljena: ${data.ime}`,
     emailTemplate('Podatki stranke posodobljeni','✏️',[
       ['Ime', data.ime], ['Paket', data.paket],
       ['Obiski skupaj', data.ure_skupaj||'—'], ['Porabljeni', porabljene]
     ]));
   return { ok: true };
+}
+
+// Posodobi ime stranke v vseh njenih rezervacijah
+function posodobiImeVRezervacijah(ss, telefon, email, novoIme, staroIme) {
+  const sheet = ss.getSheetByName(SHEETS.bookings);
+  if (!sheet || sheet.getLastRow() < 2) return;
+  const head = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const imeCol = head.indexOf('ime') + 1;
+  const telCol = head.indexOf('telefon') + 1;
+  const emailCol = head.indexOf('email') + 1;
+  if (imeCol < 1) return;
+
+  const norm = t => String(t||'').replace(/[\s\/+-]/g,'').replace(/^0+/,'');
+  const telN = norm(telefon);
+  const emailN = String(email||'').trim().toLowerCase();
+
+  const vrstice = sheetToObjects(sheet);
+  vrstice.forEach((b, i) => {
+    const ujemTel = telN && norm(b.telefon) === telN;
+    const ujemEmail = emailN && String(b.email||'').trim().toLowerCase() === emailN;
+    const ujemStaroIme = staroIme && b.ime === staroIme;
+    // Posodobi če se ujema kontakt ALI staro ime
+    if (ujemTel || ujemEmail || ujemStaroIme) {
+      sheet.getRange(i + 2, imeCol).setValue(novoIme);
+    }
+  });
 }
 
 function deleteClient(ss, data) {
@@ -435,13 +494,14 @@ function addBooking(ss, data) {
 
   // ── Potrdilni email stranki ────────────────────────────────
   if (data.email) {
+    const odpovedUre = parseInt(getNastavitev(ss, 'odpoved_ure', '4')) || 4;
     sendEmail(data.email, `Potrjena rezervacija — ${STUDIO_IME}`,
       emailTemplate('Rezervacija potrjena 🌿','✅',[
         ['Ime', data.ime],
         ['Termin', fmtSlot(slot)],
         ['Vrsta', slot.tip||'—'],
         ['Naziv', slot.naziv||'—'],
-      ], 'Odpoved je možna do 4 ure pred treningom. Se vidimo! 🧘')
+      ], `Odpoved je možna do ${odpovedUre} ure pred treningom. Se vidimo! 🧘`)
     );
   }
 
@@ -460,11 +520,12 @@ function cancelBooking(ss, data) {
     const slotSheet = ss.getSheetByName(SHEETS.slots);
     slot = sheetToObjects(slotSheet).find(s => s.id === booking.slot_id);
 
-    // 4h preverjanje
+    // Preverjanje pravila odpovedi (nastavljivo)
     if (slot && slot.datum && slot.cas) {
+      const odpovedUre = parseInt(getNastavitev(ss, 'odpoved_ure', '4')) || 4;
       const slotDT = new Date(slot.datum + 'T' + slot.cas + ':00');
       const diffH = (slotDT - new Date()) / (1000*60*60);
-      if (diffH < 4) return { error: 'Odpoved ni mogoča — do termina je manj kot 4 ure.' };
+      if (diffH < odpovedUre) return { error: `Odpoved ni mogoča — do termina je manj kot ${odpovedUre} ure.` };
     }
 
     // ── Paket sledenje: vrni 1 uro ─────────────────────────
@@ -508,6 +569,57 @@ function cancelBooking(ss, data) {
 
 function getWaitlist(ss) {
   return sheetToObjects(ss.getSheetByName(SHEETS.waitlist));
+}
+
+// ════════════════════════════════════════════════════════════
+//  NASTAVITVE — pravilo odpovedi in paketi
+// ════════════════════════════════════════════════════════════
+
+function getSettings(ss) {
+  ss = ss || SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName('Nastavitve');
+  if (!sheet) { nastaviPrivzete(ss); sheet = ss.getSheetByName('Nastavitve'); }
+  if (!sheet) return { odpoved_ure: 4, paketi: [] };
+  const rows = sheetToObjects(sheet);
+  const map = {};
+  rows.forEach(r => { map[r.kljuc] = r.vrednost; });
+  // Parsiraj pakete "4× mesečno:4,8× mesečno:8" → [{ime, ure}]
+  const paketiStr = map.paketi || '';
+  const paketi = paketiStr.split(',').filter(Boolean).map(p => {
+    const [ime, ure] = p.split(':');
+    return { ime: (ime||'').trim(), ure: parseInt(ure)||0 };
+  });
+  return {
+    odpoved_ure: parseInt(map.odpoved_ure) || 4,
+    paketi: paketi
+  };
+}
+
+function getNastavitev(ss, kljuc, privzeto) {
+  const sheet = ss.getSheetByName('Nastavitve');
+  if (!sheet) return privzeto;
+  const row = sheetToObjects(sheet).find(r => r.kljuc === kljuc);
+  return row ? row.vrednost : privzeto;
+}
+
+function saveSettings(ss, data) {
+  let sheet = ss.getSheetByName('Nastavitve');
+  if (!sheet) { nastaviPrivzete(ss); sheet = ss.getSheetByName('Nastavitve'); }
+
+  function setKljuc(kljuc, vrednost) {
+    const rows = sheetToObjects(sheet);
+    const idx = rows.findIndex(r => r.kljuc === kljuc);
+    if (idx >= 0) {
+      sheet.getRange(idx + 2, 2).setValue(vrednost); // +2: glava + 1-index
+    } else {
+      sheet.appendRow([kljuc, vrednost]);
+    }
+  }
+
+  if (data.odpoved_ure !== undefined) setKljuc('odpoved_ure', String(data.odpoved_ure));
+  if (data.paketi !== undefined) setKljuc('paketi', data.paketi); // že kot string "ime:ure,ime:ure"
+
+  return { ok: true };
 }
 
 function addWaitlist(ss, data) {
@@ -646,6 +758,7 @@ function sendDayBeforeReminders() {
   const bookings = sheetToObjects(ss.getSheetByName(SHEETS.bookings));
 
   const zdaj = new Date();
+  const odpovedUre = parseInt(getNastavitev(ss, 'odpoved_ure', '4')) || 4;
   let skupajPoslano = 0;
 
   slots.forEach(slot => {
@@ -673,7 +786,7 @@ function sendDayBeforeReminders() {
           ['Datum', fmtSlot(slot)],
           ['Čas', slot.cas],
           ['Naziv', slot.naziv||'Pilates'],
-        ], 'Vaš trening je čez približno 12 ur. Odpoved je možna do 4 ure pred treningom. Se vidimo! 🧘')
+        ], `Vaš trening je čez približno 12 ur. Odpoved je možna do ${odpovedUre} ure pred treningom. Se vidimo! 🧘`)
       );
       skupajPoslano++;
     });
@@ -1257,4 +1370,42 @@ function mesecniResetPaketov() {
 
   Logger.log(`✅ Resetiranih ${resetiranih} paketov za nov mesec.`);
   return { ok: true, resetiranih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  POENOTI IMENA V REZERVACIJAH
+//  Zaženi ročno — popravi stara imena v rezervacijah, da se
+//  ujemajo s trenutnimi imeni strank (poveže po telefonu/emailu).
+// ════════════════════════════════════════════════════════════
+
+function poenotiImenaVRezervacijah() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const clients = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+  const bookSheet = ss.getSheetByName(SHEETS.bookings);
+  if (!bookSheet || bookSheet.getLastRow() < 2) return { ok: true, popravljenih: 0 };
+
+  const head = bookSheet.getRange(1,1,1,bookSheet.getLastColumn()).getValues()[0];
+  const imeCol = head.indexOf('ime') + 1;
+  const norm = t => String(t||'').replace(/[\s\/+-]/g,'').replace(/^0+/,'');
+
+  const bookings = sheetToObjects(bookSheet);
+  let popravljenih = 0;
+
+  bookings.forEach((b, i) => {
+    // Najdi stranko po telefonu ali emailu
+    const stranka = clients.find(c => {
+      const telUjem = norm(c.telefon) && norm(c.telefon) === norm(b.telefon);
+      const emailUjem = String(c.email||'').trim().toLowerCase() &&
+        String(c.email||'').trim().toLowerCase() === String(b.email||'').trim().toLowerCase();
+      return telUjem || emailUjem;
+    });
+    // Če najdena in ime različno, popravi
+    if (stranka && stranka.ime && stranka.ime !== b.ime) {
+      bookSheet.getRange(i + 2, imeCol).setValue(stranka.ime);
+      popravljenih++;
+    }
+  });
+
+  Logger.log(`✅ Poenotenih ${popravljenih} imen v rezervacijah.`);
+  return { ok: true, popravljenih };
 }
