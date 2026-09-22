@@ -499,10 +499,13 @@ async function loadMyBookings() {
   const vnosEmail=vnos.toLowerCase();
   const vnosTel=vnos.replace(/\s|\/|-|\+/g,'');
   try {
-    const [rb,rs]=await Promise.all([
+    const [rb,rs,rset]=await Promise.all([
       fetch(API_URL+'?action=getBookings').then(r=>r.json()),
-      fetch(API_URL+'?action=getSlots').then(r=>r.json())
+      fetch(API_URL+'?action=getSlots').then(r=>r.json()),
+      fetch(API_URL+'?action=getSettings').then(r=>r.json()).catch(()=>null)
     ]);
+    // Uporabi svežo nastavitev odpovedi (npr. 2 uri)
+    if(rset && rset.odpoved_ure) ODPOVED_URE = rset.odpoved_ure;
     const mine=rb.filter(b=>{
       if(b.status!=='potrjena') return false;
       const bEmail=(b.email||'').toString().toLowerCase();
