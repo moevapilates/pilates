@@ -239,6 +239,10 @@ input:focus{border-color:var(--sage);background:white}
       <span style="width:16px;height:16px;border-radius:4px;background:#C08552;flex-shrink:0"></span>
       <span><strong>Trim kabinet – teniška igrišča, Portorož</strong> · srede 18:00</span>
     </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:16px;height:16px;border-radius:4px;background:#7B9BB3;flex-shrink:0"></span>
+      <span><strong>TBox Center, Izola</strong> · ponedeljki 19:00 in četrtki 16:45</span>
+    </div>
   </div>
 </div>
 
@@ -373,16 +377,19 @@ function renderCalendar(dates) {
   }).join('')}</div>`;
 }
 
-// Določi lokacijo termina glede na dan in čas
+// Določi lokacijo termina glede na naziv in dan/čas
 function slotLokacija(s) {
+  const naziv = (s.naziv||'').toLowerCase();
+  // TBox Center Izola — prepoznamo po nazivu
+  if (naziv.includes('izola') || naziv.includes('tbox')) {
+    return { ime: 'TBox Center, Izola', barva: '#7B9BB3' };
+  }
   const d = new Date(s.datum + 'T00:00:00');
   const dan = d.getDay(); // 0=ned,1=pon,2=tor,3=sre,4=čet
-  const cas = s.cas || '';
   // Sreda 18:00 → Trim kabinet
   if (dan === 3) return { ime: 'Trim kabinet, Portorož', barva: '#C08552' };
   // Torek in četrtek 20:00 → Tonus fit Marina
   if (dan === 2 || dan === 4) return { ime: 'Tonus fit Marina, Portorož', barva: '#8A9E8C' };
-  // Ostalo (če bi bilo)
   return { ime: '', barva: '#B0A99F' };
 }
 
