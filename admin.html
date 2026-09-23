@@ -793,9 +793,7 @@ function renderClients() {
     let opozorilo = '';
     if(ns >= 3) opozorilo = `<span class="badge badge-overdue" title="${ns} neprihodov">⚠ ${ns}× ni prišla</span>`;
     else if(ns > 0) opozorilo = `<span class="td-muted">${ns}× ni prišla</span>`;
-    // Opozori če manjka kontakt
-    const niKontakta = !((c.telefon||'').toString().trim()) && !((c.email||'').toString().trim());
-    const kontaktOpozorilo = niKontakta ? `<span class="badge badge-overdue" title="Brez kontakta ne more rezervirati">⚠ ni kontakta</span>` : '';
+    const kontaktOpozorilo = '';
     // Paket + preostali obiski
     let paketHtml='<span class="td-muted">—</span>';
     if(c.paket){
@@ -808,8 +806,8 @@ function renderClients() {
       }
       paketHtml=`<span class="badge badge-confirmed">${c.paket}</span>${ostBadge}`;
     }
-    return `<tr${niKontakta?' style="background:#FDF3F1"':''}>
-    <td class="td-name">${c.ime}${opozorilo?' '+opozorilo:''}${kontaktOpozorilo?' '+kontaktOpozorilo:''}</td>
+    return `<tr>
+    <td class="td-name">${c.ime}${opozorilo?' '+opozorilo:''}</td>
     <td>${c.telefon||'<span class="td-muted">—</span>'}</td>
     <td>${c.email||'<span class="td-muted">—</span>'}</td>
     <td>${paketHtml}</td>
