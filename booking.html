@@ -215,7 +215,7 @@ input:focus{border-color:var(--sage);background:white}
     </div>
     <div class="my-bookings-list" id="myBookingsList">
       <div class="my-bookings-email">
-        <input type="text" id="myEmail" placeholder="Vnesite email ali telefon">
+        <input type="text" id="myEmail" placeholder="Vnesite ime in priimek">
         <button onclick="loadMyBookings()">Prikaži</button>
       </div>
       <div id="myBookingsResult"></div>
@@ -258,9 +258,9 @@ input:focus{border-color:var(--sage);background:white}
     <div id="formView">
       <h2>Rezerviraj termin</h2>
       <div class="slot-summary" id="slotSummary"></div>
-      <div style="background:var(--sage-pale);border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:var(--accent);line-height:1.4">Vpišite <strong>email ali telefon</strong>, ki ste ga sporočili Evi ob vpisu. Rezervirajo lahko le vpisane članice.</div>
+      <div style="background:var(--sage-pale);border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:var(--accent);line-height:1.4">Vpišite <strong>ime in priimek</strong>, s katerim ste vpisani. Email je neobvezen — vpišite ga, če želite prejeti potrdilo in opomnik.</div>
       <div class="form-group"><label>Ime in priimek *</label><input type="text" id="bookName" placeholder="Ana Novak" autocomplete="name"></div>
-      <div class="form-group"><label>Email ali telefon *</label><input type="text" id="bookContact" placeholder="ana@email.com ali 041 234 567" autocomplete="email"></div>
+      <div class="form-group"><label>Email <span style="text-transform:none;font-weight:400;opacity:.7">(neobvezno)</span></label><input type="email" id="bookContact" placeholder="ana@email.com" autocomplete="email"></div>
       <div class="form-actions">
         <button class="btn btn-outline" onclick="closeForm()">Prekliči</button>
         <button class="btn btn-primary" onclick="submitBooking()">Potrdi rezervacijo →</button>
@@ -429,12 +429,10 @@ function closeForm() {
 async function submitBooking() {
   const ime=document.getElementById('bookName').value.trim();
   const kontakt=document.getElementById('bookContact').value.trim();
-  if(!ime){alert('Prosimo, vnesite ime.');return;}
-  if(!kontakt){alert('Vnesite email ali telefon, ki ste ga sporočili ob vpisu.');return;}
-  // Ugotovi ali je email (vsebuje @) ali telefon
-  const jeEmail = kontakt.includes('@');
-  const email = jeEmail ? kontakt : '';
-  const telefon = jeEmail ? '' : kontakt;
+  if(!ime){alert('Prosimo, vnesite ime in priimek.');return;}
+  // Email je neobvezen; če je vpisan in vsebuje @, ga uporabimo
+  const email = kontakt.includes('@') ? kontakt : '';
+  const telefon = '';
   const btn=document.querySelector('#formView .btn-primary');
   btn.textContent='Rezerviram...'; btn.disabled=true;
   try {
@@ -499,10 +497,11 @@ function toggleMyBookings() {
 }
 async function loadMyBookings() {
   const vnos=document.getElementById('myEmail').value.trim();
-  if(!vnos){alert('Vnesite email ali telefon.');return;}
+  if(!vnos){alert('Vnesite ime in priimek.');return;}
   const res=document.getElementById('myBookingsResult');
   res.innerHTML='<div style="font-size:13px;color:var(--accent);padding:8px 0">Iščem...</div>';
-  // Normaliziraj za primerjavo
+  // Normaliziraj za primerjavo (ime, ali email/telefon kot dodatna možnost)
+  const vnosIme=vnos.toLowerCase().replace(/\s+/g,' ');
   const vnosEmail=vnos.toLowerCase();
   const vnosTel=vnos.replace(/\s|\/|-|\+/g,'');
   try {
@@ -515,11 +514,14 @@ async function loadMyBookings() {
     if(rset && rset.odpoved_ure) ODPOVED_URE = rset.odpoved_ure;
     const mine=rb.filter(b=>{
       if(b.status!=='potrjena') return false;
+      const bIme=(b.ime||'').toString().toLowerCase().replace(/\s+/g,' ');
       const bEmail=(b.email||'').toString().toLowerCase();
       const bTel=(b.telefon||'').toString().replace(/\s|\/|-|\+/g,'');
-      return (bEmail && bEmail===vnosEmail) || (vnosTel && bTel && bTel===vnosTel);
+      return (bIme && bIme===vnosIme) ||
+             (vnosEmail.includes('@') && bEmail && bEmail===vnosEmail) ||
+             (vnosTel.length>=6 && bTel && bTel===vnosTel);
     });
-    if(!mine.length){res.innerHTML='<div style="font-size:13px;color:#aaa;padding:8px 0">Ni aktivnih rezervacij za ta email/telefon.</div>';return;}
+    if(!mine.length){res.innerHTML='<div style="font-size:13px;color:#aaa;padding:8px 0">Ni aktivnih rezervacij za to ime.</div>';return;}
     const now=new Date();
     res.innerHTML=mine.map(b=>{
       const slot=rs.find(s=>String(s.id)===String(b.slot_id)); if(!slot) return '';
