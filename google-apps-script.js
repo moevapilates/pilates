@@ -51,6 +51,10 @@ function emailTemplate(title, emoji, rows, footer) {
     '📋':'#7A6E5F', '⏰':'#E6A23C', '⚠️':'#C17A6A', '🎉':'#B8860B',
     '📨':'#8A9E8C'
   };
+  // Odstrani morebitne emojije iz naslova in footerja (da se ne pokažejo kot ??????)
+  const stripEmoji = t => (t||'').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu,'').trim();
+  title = stripEmoji(title);
+  footer = footer ? stripEmoji(footer) : footer;
   const dotColor = dotColors[emoji] || '#8A9E8C';
   const dot = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${dotColor};margin-right:8px;vertical-align:middle"></span>`;
 
@@ -496,12 +500,12 @@ function addBooking(ss, data) {
   if (data.email) {
     const odpovedUre = parseInt(getNastavitev(ss, 'odpoved_ure', '4')) || 4;
     sendEmail(data.email, `Potrjena rezervacija — ${STUDIO_IME}`,
-      emailTemplate('Rezervacija potrjena 🌿','✅',[
+      emailTemplate('Rezervacija potrjena','✅',[
         ['Ime', data.ime],
         ['Termin', fmtSlot(slot)],
         ['Vrsta', slot.tip||'—'],
         ['Naziv', slot.naziv||'—'],
-      ], `Odpoved je možna do ${odpovedUre} ure pred treningom. Se vidimo! 🧘`)
+      ], `Odpoved je možna do ${odpovedUre} ure pred treningom. Se vidimo!`)
     );
   }
 
@@ -648,7 +652,7 @@ function addWaitlist(ss, data) {
       emailTemplate('Na čakalni listi ste','📋',[
         ['Ime', data.ime],
         ['Termin', fmtSlot(slot)],
-      ], 'Takoj ko se sprosti mesto, vas obvestimo. Hvala za potrpežljivost! 🌿')
+      ], 'Takoj ko se sprosti mesto, vas obvestimo. Hvala za potrpežljivost!')
     );
   }
 
@@ -675,7 +679,7 @@ function notifyWaitlist(ss, slotId, slot) {
       emailTemplate('Sprostilo se je mesto!','🎉',[
         ['Termin', fmtSlot(slot)],
         ['Vrsta', slot?.tip||'—'],
-      ], `Hitro rezervirajte — mesto je odprto na prvi pridejo, prvi serve! 🧘`)
+      ], `Hitro rezervirajte — mesto je odprto na prvi pridejo, prvi serve!`)
     );
   }
 
@@ -781,12 +785,12 @@ function sendDayBeforeReminders() {
     slotBookings.forEach(b => {
       if (!b.email) return;
       sendEmail(b.email, `Opomnik: trening ob ${slot.cas} — ${STUDIO_IME}`,
-        emailTemplate('Opomnik za trening 🌿','⏰',[
+        emailTemplate('Opomnik za trening','⏰',[
           ['Ime', b.ime],
           ['Datum', fmtSlot(slot)],
           ['Čas', slot.cas],
           ['Naziv', slot.naziv||'Pilates'],
-        ], `Vaš trening je čez približno 12 ur. Odpoved je možna do ${odpovedUre} ure pred treningom. Se vidimo! 🧘`)
+        ], `Vaš trening je čez približno 12 ur. Odpoved je možna do ${odpovedUre} ure pred treningom. Se vidimo!`)
       );
       skupajPoslano++;
     });
@@ -1027,7 +1031,7 @@ function sendOverdueReminders() {
         ['Opis',    p.opis||'—'],
         ['Znesek',  `${parseFloat(p.znesek||0).toFixed(2)} €`],
         ['Rok',     p.rok||'—'],
-      ], 'Prosimo, uredite plačilo čim prej. Hvala! 🌿')
+      ], 'Prosimo, uredite plačilo čim prej. Hvala!')
     );
   });
 }
@@ -1109,6 +1113,70 @@ function generirajTermine() {
   }
 
   Logger.log(`✅ Ustvarjenih ${ustvarjenih} terminov, preskočenih ${preskocenih} (obstoječi/prazniki).`);
+  return { ok: true, ustvarjenih, preskocenih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  DODAJ TERMINE — TBox Center Izola
+//  Ponedeljki 19:00 in četrtki 16:45, 8 mest, do konca 2026.
+//  Naziv "Pilates - TBox Izola" (ločimo po lokaciji).
+//  Zaženi enkrat.
+// ════════════════════════════════════════════════════════════
+
+function dodajTermineIzola() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  const obstojeci = sheetToObjects(sheet);
+
+  // Urnik Izola: dan → {ura, mest}
+  const URNIK = {
+    1: { cas: '19:00', mest: 8 },  // ponedeljek
+    4: { cas: '16:45', mest: 8 }   // četrtek
+  };
+  const NAZIV = 'Pilates - TBox Izola';
+
+  const PRAZNIKI = ['01-01','01-02','02-08','04-27','05-01','05-02',
+    '06-25','08-15','10-31','11-01','12-25','12-26'];
+  const PRAZNIKI_DATUM = ['2025-04-21','2026-04-06','2027-03-29'];
+
+  const danes = new Date();
+  danes.setHours(0,0,0,0);
+  const konec = new Date(2026, 11, 31); // do 31.12.2026
+
+  let ustvarjenih = 0, preskocenih = 0;
+  const novVrstice = [];
+
+  for (let d = new Date(danes); d <= konec; d.setDate(d.getDate() + 1)) {
+    const dan = d.getDay();
+    if (!URNIK[dan]) continue;
+
+    const datumStr = d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+    const md = String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+
+    if (PRAZNIKI.indexOf(md) >= 0 || PRAZNIKI_DATUM.indexOf(datumStr) >= 0) {
+      preskocenih++; continue;
+    }
+
+    const cas = URNIK[dan].cas;
+    // Preskoči če že obstaja termin z isto lokacijo (datum + ura + naziv)
+    const zeObstaja = obstojeci.some(s => s.datum === datumStr && s.cas === cas && s.naziv === NAZIV) ||
+                      novVrstice.some(r => r[1] === datumStr && r[2] === cas);
+    if (zeObstaja) { preskocenih++; continue; }
+
+    novVrstice.push([uid(), datumStr, cas, 'Skupinski', URNIK[dan].mest, NAZIV, true]);
+    ustvarjenih++;
+  }
+
+  if (novVrstice.length > 0) {
+    const startRow = sheet.getLastRow() + 1;
+    sheet.getRange(startRow, 2, novVrstice.length, 2).setNumberFormat('@');
+    sheet.getRange(startRow, 1, novVrstice.length, 7).setValues(novVrstice);
+  }
+
+  Logger.log(`✅ TBox Izola: ustvarjenih ${ustvarjenih} terminov, preskočenih ${preskocenih}.`);
   return { ok: true, ustvarjenih, preskocenih };
 }
 
@@ -1365,7 +1433,7 @@ function mesecniResetPaketov() {
         ['Resetiranih', `${resetiranih} strank`],
         ['Stranke', seznam.join('<br>')],
         ['Opomba', 'Obiski so resetirani na polno. Stranke morajo plačati nov paket za ta mesec.']
-      ], 'Ne pozabi pobrati plačil za nov mesec! 🌿'));
+      ], 'Ne pozabi pobrati plačil za nov mesec!'));
   }
 
   Logger.log(`✅ Resetiranih ${resetiranih} paketov za nov mesec.`);
@@ -1407,5 +1475,32 @@ function poenotiImenaVRezervacijah() {
   });
 
   Logger.log(`✅ Poenotenih ${popravljenih} imen v rezervacijah.`);
+  return { ok: true, popravljenih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  NASTAVI VSEM TERMINOM 8 MEST
+//  Zaženi enkrat — popravi max_mest na 8 pri vseh terminih.
+// ════════════════════════════════════════════════════════════
+
+function nastaviVsem8Mest() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  if (!sheet || sheet.getLastRow() < 2) return { ok: true, popravljenih: 0 };
+
+  const head = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const mestCol = head.indexOf('max_mest') + 1;
+  if (mestCol < 1) return { error: 'Stolpec max_mest ni najden' };
+
+  const lastRow = sheet.getLastRow();
+  const trenutne = sheet.getRange(2, mestCol, lastRow - 1, 1).getValues();
+  let popravljenih = 0;
+  const nove = trenutne.map(r => {
+    if (parseInt(r[0]) !== 8) popravljenih++;
+    return [8];
+  });
+  sheet.getRange(2, mestCol, lastRow - 1, 1).setValues(nove);
+
+  Logger.log(`✅ Nastavljenih 8 mest pri vseh terminih (spremenjenih ${popravljenih}).`);
   return { ok: true, popravljenih };
 }
