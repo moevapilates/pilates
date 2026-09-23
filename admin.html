@@ -825,10 +825,6 @@ async function saveClient() {
   if(!ime){alert('Ime je obvezno');return;}
   const telefon = document.getElementById('clientPhone').value.trim();
   const email = document.getElementById('clientEmail').value.trim();
-  // Opozori če manjka kontakt (brez tega stranka ne more rezervirati)
-  if(!telefon && !email){
-    if(!confirm('⚠ Ta stranka nima emaila ne telefona.\n\nBrez vsaj enega NE BO mogla rezervirati termina.\n\nŽeliš vseeno shraniti?')) return;
-  }
   const id = document.getElementById('clientId').value;
   const ureVnos = document.getElementById('clientUre').value;
   const data = {
