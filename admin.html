@@ -346,7 +346,7 @@ try{
 <div class="page" id="page-clients">
   <div class="section-header">
     <div class="section-title">Stranke</div>
-    <button class="btn btn-primary" onclick="openModal('clientModal')">+ Nova stranka</button>
+    <button class="btn btn-primary" onclick="openNewClient()">+ Nova stranka</button>
   </div>
   <div class="filter-row">
     <input type="text" id="clientSearch" placeholder="Išči..." oninput="renderClients()">
@@ -361,7 +361,7 @@ try{
 <div class="page" id="page-slots">
   <div class="section-header">
     <div class="section-title">Termini (tvoj urnik)</div>
-    <button class="btn btn-primary" onclick="openModal('slotModal')">+ Nov termin</button>
+    <button class="btn btn-primary" onclick="openNewSlot()">+ Nov termin</button>
   </div>
   <!-- Mesečni zavihki -->
   <div id="monthTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
@@ -402,7 +402,7 @@ try{
 <div class="page" id="page-payments">
   <div class="section-header">
     <div class="section-title">Plačila</div>
-    <button class="btn btn-primary" onclick="openModal('paymentModal')">+ Novo plačilo</button>
+    <button class="btn btn-primary" onclick="openNewPayment()">+ Novo plačilo</button>
   </div>
   <div class="filter-row">
     <select id="paymentStatusFilter" onchange="renderPayments()">
@@ -752,6 +752,25 @@ function openModal(id) {
   document.getElementById(id).classList.add('open');
   if(id==='paymentModal') populateClientSelect();
 }
+// Odpri modal za NOVO stranko (počisti id, da ne prepiše obstoječe)
+function openNewClient() {
+  resetForms();
+  document.getElementById('clientId').value='';
+  document.getElementById('clientModalTitle').textContent='Nova stranka';
+  openModal('clientModal');
+}
+function openNewSlot() {
+  resetForms();
+  document.getElementById('slotId').value='';
+  document.getElementById('slotModalTitle').textContent='Nov termin';
+  openModal('slotModal');
+}
+function openNewPayment() {
+  resetForms();
+  document.getElementById('paymentId').value='';
+  document.getElementById('paymentModalTitle').textContent='Novo plačilo';
+  openModal('paymentModal');
+}
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   resetForms();
@@ -763,6 +782,10 @@ function resetForms() {
   document.querySelectorAll('.modal input:not([type=hidden]), .modal select, .modal textarea').forEach(el=>{
     if(el.tagName==='SELECT') el.selectedIndex=0;
     else { el.value=''; if(el.dataset) el.dataset.iso=''; }
+  });
+  // Počisti tudi skrita id polja (sicer se nova stranka zapiše čez obstoječo)
+  ['clientId','slotId','paymentId'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('slotTime').value='09:00';
   document.getElementById('slotMesta').value='1';
