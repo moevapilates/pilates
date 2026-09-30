@@ -401,9 +401,11 @@ try{
 <!-- PAYMENTS -->
 <div class="page" id="page-payments">
   <div class="section-header">
-    <div class="section-title">Plačila</div>
+    <div class="section-title">Plačila <span id="paymentsSum" style="font-size:13px;color:var(--accent);font-weight:400"></span></div>
     <button class="btn btn-primary" onclick="openNewPayment()">+ Novo plačilo</button>
   </div>
+  <!-- Mesečni zavihki -->
+  <div id="paymentMonthTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div class="filter-row">
     <select id="paymentStatusFilter" onchange="renderPayments()">
       <option value="">Vsi</option><option value="placano">Plačano</option><option value="caka">Čaka</option><option value="zamuda">Zamuda</option>
@@ -1127,22 +1129,80 @@ async function cancelBooking(id) {
 }
 
 // ── PAYMENTS ──────────────────────────────────────────────────
+let izbraniMesecPlacila = null; // "2026-07"
+
 async function loadPayments() {
   const [p,c]=await Promise.all([api('getPayments'),api('getClients')]);
   if(!p){noApi('paymentsTable',6);return;}
   payments=p; clients=c||clients;
+  renderPaymentMonthTabs();
   renderPayments();
 }
 function clientName(id){return clients.find(c=>c.id===id)?.ime||'—';}
+
+function renderPaymentMonthTabs() {
+  // Zberi unikatne mesece iz roka plačil
+  // Prepozna mesec iz OPISA (npr. "September", "za oktober 2026")
+  const cont = document.getElementById('paymentMonthTabs');
+  if(!cont) return;
+  // Zberi unikatne mesece iz opisov, v vrstnem redu koledarja
+  const najdeni = [];
+  payments.forEach(p=>{
+    const m = mesecIzOpisa(p.opis);
+    if(m && !najdeni.includes(m)) najdeni.push(m);
+  });
+  // Uredi po zaporedju meseca
+  najdeni.sort((a,b)=>MESECI_SL.indexOf(a)-MESECI_SL.indexOf(b));
+  // Privzeto tekoči mesec, če obstaja
+  if(!izbraniMesecPlacila || (izbraniMesecPlacila!=='vsi' && izbraniMesecPlacila!=='brez' && !najdeni.includes(izbraniMesecPlacila))){
+    const tekoci = MESECI_SL[new Date().getMonth()];
+    izbraniMesecPlacila = najdeni.includes(tekoci) ? tekoci : (najdeni[0]||'vsi');
+  }
+  let html = najdeni.map(m=>{
+    const label = m.charAt(0).toUpperCase()+m.slice(1);
+    const st = payments.filter(p=>mesecIzOpisa(p.opis)===m).length;
+    const aktiven = m===izbraniMesecPlacila;
+    return `<button onclick="izberiMesecPlacila('${m}')" class="btn ${aktiven?'btn-primary':'btn-outline'} btn-sm" style="white-space:nowrap">${label} <span style="opacity:.6">(${st})</span></button>`;
+  }).join('');
+  html += `<button onclick="izberiMesecPlacila('vsi')" class="btn ${izbraniMesecPlacila==='vsi'?'btn-primary':'btn-outline'} btn-sm">Vsa</button>`;
+  cont.innerHTML = html;
+}
+// Poišče ime meseca v besedilu opisa
+function mesecIzOpisa(opis){
+  const t = (opis||'').toLowerCase();
+  // Podpri tudi sklone (septembra, oktobra...) — preveri koren
+  const koreni = ['januar','februar','marec','april','maj','junij','julij','avgust','september','oktober','november','december'];
+  for(const k of koreni){
+    if(t.includes(k)) return k;
+  }
+  return null;
+}
+function izberiMesecPlacila(m){
+  izbraniMesecPlacila=m;
+  renderPaymentMonthTabs();
+  renderPayments();
+}
+
 function renderPayments() {
   const sf=document.getElementById('paymentStatusFilter')?.value;
   const q=(document.getElementById('paymentSearch')?.value||'').toLowerCase();
   let list=[...payments];
+  // Filter po mesecu (iz opisa)
+  if(izbraniMesecPlacila && izbraniMesecPlacila!=='vsi'){
+    list=list.filter(p=>mesecIzOpisa(p.opis)===izbraniMesecPlacila);
+  }
   if(sf)list=list.filter(p=>p.status===sf);
   if(q)list=list.filter(p=>clientName(p.client_id).toLowerCase().includes(q));
-  list.sort((a,b)=>(a.rok||'').localeCompare(b.rok||''));
+  list.sort((a,b)=>clientName(a.client_id).localeCompare(clientName(b.client_id),'sl'));
+
+  // Vsota (plačano + skupaj) za izbrani mesec
+  const skupaj=list.reduce((s,p)=>s+parseFloat(p.znesek||0),0);
+  const placano=list.filter(p=>p.status==='placano').reduce((s,p)=>s+parseFloat(p.znesek||0),0);
+  const sumEl=document.getElementById('paymentsSum');
+  if(sumEl) sumEl.textContent = list.length?`· plačano ${placano.toFixed(0)} € / skupaj ${skupaj.toFixed(0)} €`:'';
+
   const tbody=document.getElementById('paymentsTable');
-  if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">💶</div><p>Ni plačil.</p></div></td></tr>`;return;}
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">💶</div><p>Ni plačil v tem mesecu.</p></div></td></tr>`;return;}
   const bm={placano:'badge-paid',caka:'badge-pending',zamuda:'badge-overdue'};
   const lm={placano:'Plačano',caka:'Čaka',zamuda:'Zamuda'};
   tbody.innerHTML=list.map(p=>`<tr>
