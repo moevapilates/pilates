@@ -1141,22 +1141,15 @@ async function loadPayments() {
 function clientName(id){return clients.find(c=>c.id===id)?.ime||'—';}
 
 function renderPaymentMonthTabs() {
-  // Zberi unikatne mesece iz roka plačil
   // Prepozna mesec iz OPISA (npr. "September", "za oktober 2026")
   const cont = document.getElementById('paymentMonthTabs');
   if(!cont) return;
-  // Zberi unikatne mesece iz opisov, v vrstnem redu koledarja
-  const najdeni = [];
-  payments.forEach(p=>{
-    const m = mesecIzOpisa(p.opis);
-    if(m && !najdeni.includes(m)) najdeni.push(m);
-  });
-  // Uredi po zaporedju meseca
-  najdeni.sort((a,b)=>MESECI_SL.indexOf(a)-MESECI_SL.indexOf(b));
-  // Privzeto tekoči mesec, če obstaja
-  if(!izbraniMesecPlacila || (izbraniMesecPlacila!=='vsi' && izbraniMesecPlacila!=='brez' && !najdeni.includes(izbraniMesecPlacila))){
+  // FIKSEN vrstni red mesecev: junij → december
+  const najdeni = ['junij','julij','avgust','september','oktober','november','december'];
+  // Privzeto tekoči mesec, če je v seznamu
+  if(!izbraniMesecPlacila || (izbraniMesecPlacila!=='vsi' && !najdeni.includes(izbraniMesecPlacila))){
     const tekoci = MESECI_SL[new Date().getMonth()];
-    izbraniMesecPlacila = najdeni.includes(tekoci) ? tekoci : (najdeni[0]||'vsi');
+    izbraniMesecPlacila = najdeni.includes(tekoci) ? tekoci : najdeni[0];
   }
   let html = najdeni.map(m=>{
     const label = m.charAt(0).toUpperCase()+m.slice(1);
