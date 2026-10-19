@@ -1,611 +1,1506 @@
-<!DOCTYPE html>
-<html lang="sl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MOEVA">
-<meta name="theme-color" content="#2C2C2C">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" type="image/png" href="favicon.png">
-<title>Rezervacija termina — MOEVA PILATES</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&family=Montserrat:wght@300;400;500&display=swap');
-:root{
-  --sage:#8A9E8C;--sage-light:#C5D4C6;--sage-pale:#EEF3EE;
-  --charcoal:#2C2C2C;--warm-white:#FAF9F7;--sand:#D4C9B8;
-  --sand-light:#F0EBE3;--accent:#7A6E5F;--border:#DDD8D0;
-  --success:#6A9E7A;--error:#C17A6A;
-}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{-webkit-text-size-adjust:100%;overscroll-behavior:none}
-body{font-family:'Inter',sans-serif;background:var(--warm-white);color:var(--charcoal);font-size:15px;min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased;overflow-x:hidden;overscroll-behavior-y:contain}
+// ============================================================
+//  MOEVA PILATES — Google Apps Script Backend
+//  Kopiraj to kodo v Google Apps Script (script.google.com)
+//  in jo poveži s tvojim Google Sheets dokumentom.
+// ============================================================
 
-/* HERO */
-.hero{background:var(--charcoal);color:var(--warm-white);padding:calc(40px + env(safe-area-inset-top)) 24px 36px;text-align:center}
-.hero-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--sage-light);margin-bottom:14px;font-weight:400}
-.moeva-logo{text-align:center;margin:0 auto 18px}
-.moeva-name{font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:400;letter-spacing:.18em;line-height:1;color:var(--warm-white);padding-left:.18em}
-.moeva-line{width:200px;height:1px;background:rgba(255,255,255,.5);margin:12px auto}
-.moeva-sub{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:400;letter-spacing:.42em;color:var(--warm-white);opacity:.7;padding-left:.42em}
-.hero h1{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:300;line-height:1.1;margin-bottom:10px}
-.hero h1 em{color:var(--sage-light);font-style:italic}
-.hero-sub{font-size:13px;color:var(--sand);font-weight:300;letter-spacing:.03em;margin-top:8px;line-height:1.4}
+const SHEET_ID   = '1Tp-gLGgM-n2W1LolyXjtjTNQaXPMuuIcX4-6AmDOXmU';      // tvoj Sheet ID ✓
+const ADMIN_EMAIL = 'moeva.pilates@gmail.com';   // tvoj email za obvestila ✓
+const STUDIO_IME  = 'MOEVA PILATES';
 
-/* WEEK NAV */
-.week-nav{display:flex;align-items:center;justify-content:center;gap:16px;padding:16px;background:var(--sand-light);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
-.week-nav button{background:white;border:1px solid var(--border);min-width:44px;min-height:44px;font-size:22px;cursor:pointer;color:var(--accent);border-radius:10px;transition:all .15s;display:flex;align-items:center;justify-content:center;line-height:1}
-.week-nav button:active{background:var(--sage-pale);transform:scale(.94)}
-.week-label{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:400;color:var(--charcoal);flex:1;text-align:center}
+// Koliko ur pred treningom pošlji opomnik strankam
+const OPOMNIK_URE = 12; // pošlji opomnik 12h pred treningom
 
-/* CALENDAR GRID */
-.type-filter{display:flex;gap:8px;padding:12px 14px;background:var(--warm-white);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.type-filter::-webkit-scrollbar{display:none}
-.chip{padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:white;color:var(--accent);font-size:13px;font-family:'Inter',sans-serif;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;min-height:38px;flex-shrink:0}
-.chip.active{background:var(--sage);color:white;border-color:var(--sage)}
-.chip:active{transform:scale(.95)}
-.cal-wrap{max-width:860px;margin:0 auto;padding:18px 14px calc(24px + env(safe-area-inset-bottom))}
-.days-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+// Pri koliko preostalih urah paketa pošlji opozorilo
+const PAKET_OPOZORILO_URE = 2;
 
-.day-col{}
-.day-header{text-align:center;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-.day-name{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);font-weight:500}
-.day-num{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;line-height:1.1;color:var(--charcoal)}
-.day-num.today{color:var(--sage)}
-.praznik-tag{font-size:9px;color:#b8860b;background:#FBF0D9;padding:2px 6px;border-radius:10px;margin-top:4px;display:inline-block;font-weight:500}
-/* ADD TO HOME SCREEN BANNER */
-.a2hs-banner{display:none;align-items:center;gap:10px;padding:11px 14px;background:var(--sage-pale);border-bottom:1px solid var(--sage-light);font-size:12px;color:var(--accent);line-height:1.4}
-.a2hs-banner.show{display:flex}
-.a2hs-icon{font-size:18px;flex-shrink:0}
-.a2hs-text{flex:1}
-.a2hs-text strong{color:var(--charcoal)}
-.a2hs-close{background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 8px;flex-shrink:0;min-height:32px}
-
-/* SLOT CARD */
-.slot-card{
-  background:white;border:1px solid var(--border);border-radius:10px;
-  padding:14px;margin-bottom:8px;cursor:pointer;min-height:60px;
-  transition:transform .12s,box-shadow .12s,border-color .12s;position:relative;
-}
-.slot-card:active:not(.full){transform:scale(.97);border-color:var(--sage)}
-.slot-card.full{opacity:.55;cursor:default}
-.slot-time{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--charcoal);line-height:1}
-.slot-type{font-size:12px;color:var(--accent);margin-top:4px}
-.slot-naziv{font-size:11px;color:#999;margin-top:2px;font-style:italic}
-.slot-spots{
-  position:absolute;top:11px;right:11px;
-  font-size:10px;font-weight:500;padding:3px 9px;border-radius:20px;
-}
-.spots-free{background:var(--sage-pale);color:var(--sage)}
-.spots-last{background:#fff8e1;color:#e65100}
-.spots-full{background:#fce4ec;color:#880e4f}
-.no-slots{text-align:center;padding:24px 0;color:#ccc;font-size:13px}
-
-/* MY BOOKINGS */
-.my-bookings-wrap{background:var(--sage-pale);border-bottom:1px solid var(--sage-light);padding:0}
-.my-bookings-inner{max-width:860px;margin:0 auto;padding:14px 16px}
-.my-bookings-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;min-height:32px}
-.my-bookings-toggle span{font-size:14px;color:var(--accent);font-weight:500}
-.my-bookings-toggle .arrow{font-size:13px;color:var(--sage);transition:transform .2s}
-.my-bookings-toggle .arrow.open{transform:rotate(180deg)}
-.my-bookings-list{margin-top:12px;display:none}
-.my-bookings-list.open{display:block}
-.my-booking-row{background:white;border:1px solid var(--border);border-radius:10px;padding:13px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
-.my-booking-info{font-size:14px}
-.my-booking-date{font-weight:500;color:var(--charcoal)}
-.my-booking-type{font-size:12px;color:var(--accent);margin-top:2px}
-.btn-cancel{padding:10px 16px;border-radius:8px;border:1px solid var(--error);background:white;color:var(--error);font-size:13px;font-family:'Inter',sans-serif;font-weight:500;cursor:pointer;white-space:nowrap;min-height:42px}
-.btn-cancel:active:not(:disabled){background:var(--error);color:white}
-.btn-cancel:disabled{opacity:.4;cursor:not-allowed;border-color:#ccc;color:#ccc}
-.cancel-blocked{font-size:11px;color:#aaa;text-align:right;white-space:nowrap}
-.my-bookings-email{display:flex;gap:8px;margin-bottom:12px}
-.my-bookings-email input{flex:1;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:16px;font-family:'Inter',sans-serif;outline:none;min-height:46px}
-.my-bookings-email input:focus{border-color:var(--sage)}
-.my-bookings-email button{padding:12px 18px;border-radius:8px;border:none;background:var(--sage);color:white;font-size:14px;font-family:'Inter',sans-serif;font-weight:500;cursor:pointer;white-space:nowrap;min-height:46px}
-
-.form-panel{
-  display:none;position:fixed;inset:0;z-index:100;
-  background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center;
-}
-.form-panel.open{display:flex}
-.form-inner{
-  background:white;border-radius:20px 20px 0 0;
-  padding:26px 22px calc(28px + env(safe-area-inset-bottom));
-  width:100%;max-width:480px;max-height:92vh;max-height:92dvh;overflow-y:auto;
-  animation:slideUp .28s cubic-bezier(.2,.8,.2,1);
-}
-.form-inner::before{content:'';display:block;width:40px;height:4px;background:#ddd;border-radius:4px;margin:-8px auto 18px}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.form-inner h2{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400;margin-bottom:6px}
-.slot-summary{font-size:14px;color:var(--accent);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
-.form-group{margin-bottom:14px}
-label{display:block;font-size:11px;font-weight:500;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
-input{width:100%;padding:13px;border:1px solid var(--border);border-radius:10px;font-size:16px;font-family:'Inter',sans-serif;color:var(--charcoal);background:var(--warm-white);outline:none;transition:border-color .15s;min-height:48px}
-input:focus{border-color:var(--sage);background:white}
-.form-actions{display:flex;gap:10px;margin-top:22px}
-.btn{padding:15px 20px;border-radius:10px;border:none;cursor:pointer;font-size:15px;font-family:'Inter',sans-serif;font-weight:500;transition:transform .1s;flex:1;text-align:center;min-height:50px}
-.btn:active{transform:scale(.97)}
-.btn-primary{background:var(--charcoal);color:white}
-.btn-outline{background:white;color:var(--charcoal);border:1px solid var(--border);flex:0 0 auto;padding:15px 18px}
-/* SUCCESS */
-.success-panel{display:none;text-align:center;padding:30px 16px}
-.success-panel.show{display:block}
-.success-icon{font-size:52px;margin-bottom:16px}
-.success-panel h2{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;margin-bottom:8px}
-.success-panel p{font-size:15px;color:var(--accent);line-height:1.6}
-
-/* LOADING / INFO */
-.loading-msg{text-align:center;padding:48px 20px;color:var(--accent);font-size:14px}
-.error-msg{text-align:center;padding:36px 20px;color:var(--error);font-size:14px}
-
-/* TABLET & DESKTOP — base is mobile-first */
-/* ZELO OZKI TELEFONI (< 360px) */
-@media(max-width:359px){
-  .hero h1{font-size:36px}
-  .days-grid{gap:8px}
-  .slot-card{padding:11px}
-  .slot-time{font-size:19px}
-  .day-num{font-size:22px}
-}
-@media(min-width:600px){
-  .hero h1{font-size:52px}
-  .days-grid{grid-template-columns:repeat(4,1fr);gap:14px}
-  .cal-wrap{padding:28px 20px}
-  .week-nav{position:static}
-  .form-inner{border-radius:16px;margin-bottom:auto;align-self:center}
-  .form-panel{align-items:center}
-  .slot-card:hover:not(.full){border-color:var(--sage);box-shadow:0 3px 12px rgba(138,158,140,.18)}
-  .btn-primary:hover{background:#444}
-}
-</style>
-</head>
-<body>
-
-<!-- ZAMENJAJ Z VAŠIM APPS SCRIPT URL-jem -->
-<script>const API_URL = 'https://script.google.com/macros/s/AKfycbyjuN5NjtytyZfsr5KvI9GpbYh9NTLmnoV0eohmEfkwOcCHOHhKQ8naBXo0rd1glkj5hw/exec';</script>
-
-<div class="hero">
-  <div class="moeva-logo">
-    <img src="logo-white.png" alt="MOEVA — Move with Eva" style="width:200px;max-width:70%;height:auto;display:block;margin:0 auto">
-  </div>
-  <h1>Rezerviraj <em>termin</em></h1>
-  <div class="hero-sub">Pilates vadba za ženske · Portorož in Izola, Slovenija</div>
-  <div class="hero-sub" style="margin-top:5px;font-size:12px;opacity:.6" id="odpovedHint">Odpoved možna do 4 ure pred treningom</div>
-</div>
-
-<!-- PASICA: brezplačni termini (do 10.9.) -->
-<div id="freeBanner" style="display:none">
-  <div style="max-width:520px;margin:14px auto 0;padding:16px 20px;background:linear-gradient(135deg,#8A9E8C,#6d8470);border-radius:16px;text-align:center;color:#fff;box-shadow:0 8px 24px rgba(138,158,140,.35);position:relative;overflow:hidden">
-    <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:rgba(255,255,255,.12);border-radius:50%"></div>
-    <div style="position:absolute;bottom:-30px;left:-15px;width:70px;height:70px;background:rgba(255,255,255,.1);border-radius:50%"></div>
-    <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;letter-spacing:.02em;position:relative;margin-top:4px">Brezplačni termini</div>
-    <div style="font-size:13px;opacity:.95;margin-top:5px;position:relative;line-height:1.5">Izkoristi pričetek sezone 2026/27 in se nam pridruži.<br>Rezerviraj svoje mesto!</div>
-  </div>
-</div>
-
-<!-- PASICA: zaslužen odmor (14.-17.9.) -->
-<div id="restBanner" style="display:none">
-  <div style="max-width:520px;margin:14px auto 0;padding:16px 20px;background:linear-gradient(135deg,#C08552,#a06b3f);border-radius:16px;text-align:center;color:#fff;box-shadow:0 8px 24px rgba(192,133,82,.3);position:relative;overflow:hidden">
-    <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:rgba(255,255,255,.12);border-radius:50%"></div>
-    <div style="position:absolute;bottom:-30px;left:-15px;width:70px;height:70px;background:rgba(255,255,255,.1);border-radius:50%"></div>
-    <div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;letter-spacing:.02em;position:relative;margin-top:4px">Zaslužen odmor</div>
-    <div style="font-size:13px;opacity:.95;margin-top:5px;position:relative;line-height:1.5">Se vidimo kmalu!</div>
-  </div>
-</div>
-
-<div class="a2hs-banner" id="a2hsBanner">
-  <span class="a2hs-icon">📲</span>
-  <span class="a2hs-text">Dodaj na domači zaslon za hiter dostop — pritisni <strong>Deli</strong> → <strong>Dodaj na domači zaslon</strong></span>
-  <button class="a2hs-close" onclick="dismissA2HS()">✕</button>
-</div>
-
-<div class="week-nav">
-  <button onclick="prevWeek()">‹</button>
-  <div class="week-label" id="weekLabel"></div>
-  <button onclick="nextWeek()">›</button>
-</div>
-
-<div class="my-bookings-wrap">
-  <div class="my-bookings-inner">
-    <div class="my-bookings-toggle" onclick="toggleMyBookings()">
-      <span>📋 Moje rezervacije</span>
-      <span class="arrow" id="myBookingsArrow">▼</span>
-    </div>
-    <div class="my-bookings-list" id="myBookingsList">
-      <div class="my-bookings-email">
-        <input type="text" id="myEmail" placeholder="Vnesite ime in priimek">
-        <button onclick="loadMyBookings()">Prikaži</button>
-      </div>
-      <div id="myBookingsResult"></div>
-    </div>
-  </div>
-</div>
-
-<div class="cal-wrap" id="calWrap">
-  <div class="loading-msg">Nalagam termine...</div>
-</div>
-
-<!-- LEGENDA LOKACIJ -->
-<div style="max-width:520px;margin:16px auto 0;padding:14px 18px;background:white;border:1px solid var(--border);border-radius:12px">
-  <div style="font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Lokacije</div>
-  <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="width:16px;height:16px;border-radius:4px;background:#8A9E8C;flex-shrink:0"></span>
-      <span><strong>Tonus fit Marina, Portorož</strong> · torki in četrtki 20:00</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="width:16px;height:16px;border-radius:4px;background:#C08552;flex-shrink:0"></span>
-      <span><strong>Trim kabinet – teniška igrišča, Portorož</strong> · srede 18:00</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="width:16px;height:16px;border-radius:4px;background:#7B9BB3;flex-shrink:0"></span>
-      <span><strong>TBox Center, Izola</strong> · ponedeljki 19:00 in četrtki 16:45</span>
-    </div>
-  </div>
-</div>
-
-<!-- BOOKING FORM -->
-<div class="form-panel" id="formPanel">
-  <div class="form-inner">
-    <div id="successView" class="success-panel">
-      <div class="success-icon">🌿</div>
-      <h2>Rezervacija potrjena!</h2>
-      <p id="successMsg"></p>
-      <button class="btn btn-primary" onclick="closeForm();loadSlots()" style="margin-top:20px;flex:none;width:100%">Zapri</button>
-    </div>
-    <div id="formView">
-      <h2>Rezerviraj termin</h2>
-      <div class="slot-summary" id="slotSummary"></div>
-      <div style="background:var(--sage-pale);border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:var(--accent);line-height:1.4">Vpišite <strong>ime in priimek</strong>, s katerim ste vpisani. Email je neobvezen — vpišite ga, če želite prejeti potrdilo in opomnik.</div>
-      <div class="form-group"><label>Ime in priimek *</label><input type="text" id="bookName" placeholder="Ana Novak" autocomplete="name"></div>
-      <div class="form-group"><label>Email <span style="text-transform:none;font-weight:400;opacity:.7">(neobvezno)</span></label><input type="email" id="bookContact" placeholder="ana@email.com" autocomplete="email"></div>
-      <div class="form-actions">
-        <button class="btn btn-outline" onclick="closeForm()">Prekliči</button>
-        <button class="btn btn-primary" onclick="submitBooking()">Potrdi rezervacijo →</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- WAITLIST FORM -->
-<div class="form-panel" id="waitlistPanel">
-  <div class="form-inner">
-    <div id="waitlistSuccessView" class="success-panel">
-      <div class="success-icon">📋</div>
-      <h2>Na listi ste!</h2>
-      <p>Takoj ko se sprosti mesto, vas obvestimo na email.</p>
-      <button class="btn btn-primary" onclick="closeWaitlist()" style="margin-top:20px;flex:none;width:100%">Zapri</button>
-    </div>
-    <div id="waitlistFormView">
-      <h2>Čakalna lista</h2>
-      <div class="slot-summary" id="waitlistSummary"></div>
-      <div class="form-group"><label>Ime in priimek *</label><input type="text" id="waitName" placeholder="Ana Novak" autocomplete="name"></div>
-      <div class="form-group"><label>Email *</label><input type="email" id="waitEmail" placeholder="ana@email.com" autocomplete="email"></div>
-      <div class="form-group"><label>Telefon</label><input type="tel" id="waitPhone" placeholder="+386 ..." autocomplete="tel"></div>
-      <p style="font-size:12px;color:#aaa;margin-top:4px">Ko se sprosti mesto, boste prvi obveščeni.</p>
-      <div class="form-actions">
-        <button class="btn btn-outline" onclick="closeWaitlist()">Prekliči</button>
-        <button class="btn btn-primary" id="waitlistSubmitBtn" onclick="submitWaitlist()">Prijavi se na listo →</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-const DAYS_SL = ['Nedelja','Ponedeljek','Torek','Sreda','Četrtek','Petek','Sobota'];
-const MONTHS_SL = ['januar','februar','marec','april','maj','junij','julij','avgust','september','oktober','november','december'];
-const ALLOWED_DAYS = [1,2,3,4];
-
-// Datum v dd/mm/yyyy
-function dmy(d){
-  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
-}
-
-let weekOffset = 0, slots = [], selectedSlot = null, selectedWaitSlot = null;
-let ODPOVED_URE = 4; // privzeto, posodobi se iz nastavitev
-
-// Slovenski državni prazniki in dela prosti dnevi
-const PRAZNIKI = {
-  '01-01':'novo leto','01-02':'novo leto','02-08':'Prešernov dan',
-  '04-27':'dan upora','05-01':'praznik dela','05-02':'praznik dela',
-  '06-25':'dan državnosti','08-15':'Marijino vnebovzetje',
-  '10-31':'dan reformacije','11-01':'dan spomina na mrtve',
-  '12-25':'božič','12-26':'dan samostojnosti'
+const SHEETS = {
+  clients:   'Stranke',
+  slots:     'Termini',
+  bookings:  'Rezervacije',
+  payments:  'Placila',
+  waitlist:  'CakalnaLista'
 };
-// Premakljivi prazniki (velikonočni ponedeljek) — dodani po letih
-const PRAZNIKI_DATUM = { '2025-04-21':'velikonočni ponedeljek','2026-04-06':'velikonočni ponedeljek','2027-03-29':'velikonočni ponedeljek' };
 
-function getPraznik(d) {
-  const md = String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const full = d.getFullYear()+'-'+md;
-  return PRAZNIKI[md] || PRAZNIKI_DATUM[full] || null;
-}
+// ════════════════════════════════════════════════════════════
+//  EMAIL HELPERS
+// ════════════════════════════════════════════════════════════
 
-function getMonday(offset=0) {
-  const d = new Date();
-  const day = d.getDay();
-  d.setDate(d.getDate() - day + (day===0?-6:1) + offset*7);
-  d.setHours(0,0,0,0); return d;
-}
-function getWeekDates(offset=0) {
-  const mon = getMonday(offset);
-  return ALLOWED_DAYS.map(i => { const d=new Date(mon); d.setDate(mon.getDate()+(i-1)); return d; });
-}
-function fmtDate(d) {
-  // Lokalni datum (brez UTC zamika, ki bi premaknil dan)
-  return d.getFullYear() + '-' +
-    String(d.getMonth()+1).padStart(2,'0') + '-' +
-    String(d.getDate()).padStart(2,'0');
-}
-
-async function loadSlots() {
-  const dates = getWeekDates(weekOffset);
-  const mon=dates[0], thu=dates[3];
-  document.getElementById('weekLabel').textContent =
-    `${dmy(mon)} – ${dmy(thu)}`;
-  const wrap = document.getElementById('calWrap');
-  wrap.innerHTML = '<div class="loading-msg">Nalagam termine...</div>';
+function sendEmail(to, subject, htmlBody) {
   try {
-    const r = await fetch(API_URL+'?action=getSlots');
-    const data = await r.json();
-    if(data.error) throw new Error(data.error);
-    slots = data; renderCalendar(dates);
+    // Odstrani emojije iz zadeve (subject) — v nekaterih programih se pokvarijo
+    const cleanSubject = subject.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu, '').trim();
+    GmailApp.sendEmail(to, cleanSubject, '', {
+      htmlBody: '<meta charset="UTF-8">' + htmlBody,
+      name: STUDIO_IME
+    });
   } catch(e) {
-    wrap.innerHTML = `<div class="error-msg">⚠ Napaka.<br><small>${e.message}</small></div>`;
+    console.log('Email napaka (' + to + '): ' + e.message);
   }
 }
 
-function renderCalendar(dates) {
-  const today = fmtDate(new Date());
-  document.getElementById('calWrap').innerHTML = `<div class="days-grid">${dates.map(d => {
-    const ds = fmtDate(d);
-    let daySlots = slots.filter(s=>s.datum===ds).sort((a,b)=>(a.cas||'').localeCompare(b.cas||''));
-    const isPast = ds < today;
-    const praznik = getPraznik(d);
-    return `<div class="day-col">
-      <div class="day-header">
-        <div class="day-name">${DAYS_SL[d.getDay()]}</div>
-        <div class="day-num${ds===today?' today':''}">${d.getDate()}.</div>
-        ${praznik?`<div class="praznik-tag">🎉 ${praznik}</div>`:''}
-      </div>
-      ${isPast?'<div class="no-slots" style="font-size:11px">—</div>':
-        daySlots.length===0?`<div class="no-slots">${praznik?'praznik':'Ni terminov'}</div>`:
-        daySlots.map(s=>slotCard(s)).join('')}
-    </div>`;
-  }).join('')}</div>`;
+function sendAdminEmail(subject, htmlBody) {
+  sendEmail(ADMIN_EMAIL, subject, htmlBody);
 }
 
-// Določi lokacijo termina glede na naziv in dan/čas
-function slotLokacija(s) {
-  const naziv = (s.naziv||'').toLowerCase();
-  // TBox Center Izola — prepoznamo po nazivu
-  if (naziv.includes('izola') || naziv.includes('tbox')) {
-    return { ime: 'TBox Center, Izola', barva: '#7B9BB3' };
-  }
-  const d = new Date(s.datum + 'T00:00:00');
-  const dan = d.getDay(); // 0=ned,1=pon,2=tor,3=sre,4=čet
-  // Sreda 18:00 → Trim kabinet
-  if (dan === 3) return { ime: 'Trim kabinet, Portorož', barva: '#C08552' };
-  // Torek in četrtek 20:00 → Tonus fit Marina
-  if (dan === 2 || dan === 4) return { ime: 'Tonus fit Marina, Portorož', barva: '#8A9E8C' };
-  return { ime: '', barva: '#B0A99F' };
-}
+function emailTemplate(title, emoji, rows, footer) {
+  // Pretvori emoji v barvno piko (emojiji se v nekaterih email programih pokvarijo)
+  const dotColors = {
+    '🟢':'#6A9E7A', '🔴':'#C17A6A', '👤':'#8A9E8C', '✏️':'#7A6E5F',
+    '🗑️':'#999', '📅':'#8A9E8C', '💶':'#6A9E7A', '✅':'#6A9E7A',
+    '📋':'#7A6E5F', '⏰':'#E6A23C', '⚠️':'#C17A6A', '🎉':'#B8860B',
+    '📨':'#8A9E8C'
+  };
+  // Odstrani morebitne emojije iz naslova in footerja (da se ne pokažejo kot ??????)
+  const stripEmoji = t => (t||'').replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu,'').trim();
+  title = stripEmoji(title);
+  footer = footer ? stripEmoji(footer) : footer;
+  const dotColor = dotColors[emoji] || '#8A9E8C';
+  const dot = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${dotColor};margin-right:8px;vertical-align:middle"></span>`;
 
-function slotCard(s) {
-  const free=parseInt(s.prostih||0), max=parseInt(s.max_mest||1), full=free<=0;
-  let cls='spots-free', lbl=`${free}/${max} prosto`;
-  if(full){cls='spots-full';lbl='Zasedeno';}
-  else if(free===1){cls='spots-last';lbl='Zadnje mesto!';}
-  const loc = slotLokacija(s);
-  const waitBtn = full
-    ? `<div style="margin-top:8px"><button onclick="event.stopPropagation();selectWaitlist('${s.id}')" style="width:100%;padding:6px;border-radius:5px;border:1px solid #8A9E8C;background:white;color:#8A9E8C;font-size:11px;font-family:Inter,sans-serif;cursor:pointer;font-weight:500">📋 Čakalna lista${s.cakalna>0?' ('+s.cakalna+')':''}</button></div>` : '';
-  return `<div class="slot-card${full?' full':''}" style="border-left:4px solid ${loc.barva}"${!full?` onclick="selectSlot('${s.id}')"`:''}>
-    <div class="slot-time">${s.cas||'—'}</div>
-    ${s.naziv?`<div class="slot-naziv">${s.naziv}</div>`:''}
-    <span class="slot-spots ${cls}">${lbl}</span>${waitBtn}
+  const rowsHtml = rows.map(([label, value]) =>
+    `<tr>
+      <td style="padding:7px 14px;color:#7A6E5F;font-size:13px;width:130px;vertical-align:top">${label}</td>
+      <td style="padding:7px 14px;font-size:13px;font-weight:500;color:#2C2C2C">${value||'—'}</td>
+    </tr>`
+  ).join('');
+  const footerHtml = footer
+    ? `<div style="padding:14px 24px;font-size:13px;color:#2C2C2C;background:#EEF3EE;border-top:1px solid #C5D4C6">${footer}</div>`
+    : '';
+  return `
+  <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;background:#FAF9F7;border-radius:10px;overflow:hidden;border:1px solid #DDD8D0">
+    <div style="background:#2C2C2C;padding:22px 24px">
+      <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#C5D4C6;margin-bottom:6px">${STUDIO_IME}</div>
+      <div style="font-size:22px;color:#FAF9F7;font-weight:300">${dot}${title}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;background:white;margin:0">${rowsHtml}</table>
+    ${footerHtml}
+    <div style="padding:12px 24px;font-size:11px;color:#aaa;border-top:1px solid #DDD8D0">
+      ${new Date().toLocaleString('sl-SI')} · Avtomatsko obvestilo
+    </div>
   </div>`;
 }
 
-// ── BOOKING ──────────────────────────────────────────────────
-function selectSlot(id) {
-  selectedSlot = slots.find(s=>String(s.id)===String(id)); if(!selectedSlot) return;
-  const d = new Date(selectedSlot.datum);
-  const loc = slotLokacija(selectedSlot);
-  document.getElementById('slotSummary').innerHTML =
-    `${DAYS_SL[d.getDay()]}, ${dmy(d)} — ${selectedSlot.cas}${selectedSlot.naziv?' · '+selectedSlot.naziv:''}` +
-    (loc.ime?`<div style="margin-top:6px;font-size:12px;color:${loc.barva};font-weight:600">📍 ${loc.ime}</div>`:'');
-  document.getElementById('formView').style.display='block';
-  document.getElementById('successView').classList.remove('show');
-  document.getElementById('formPanel').classList.add('open');
-  document.getElementById('bookName').focus();
-}
-function closeForm() {
-  document.getElementById('formPanel').classList.remove('open');
-  ['bookName','bookContact'].forEach(id=>document.getElementById(id).value='');
-  selectedSlot=null;
-}
-async function submitBooking() {
-  const ime=document.getElementById('bookName').value.trim();
-  const kontakt=document.getElementById('bookContact').value.trim();
-  if(!ime){alert('Prosimo, vnesite ime in priimek.');return;}
-  // Email je neobvezen; če je vpisan in vsebuje @, ga uporabimo
-  const email = kontakt.includes('@') ? kontakt : '';
-  const telefon = '';
-  const btn=document.querySelector('#formView .btn-primary');
-  btn.textContent='Rezerviram...'; btn.disabled=true;
-  try {
-    const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({
-      action:'addBooking',slot_id:selectedSlot.id,ime,email,telefon
-    })});
-    const data=await r.json();
-    if(data.error) throw new Error(data.error);
-    const d=new Date(selectedSlot.datum);
-    document.getElementById('successMsg').textContent=
-      `Vaš termin ${DAYS_SL[d.getDay()]}, ${dmy(d)} ob ${selectedSlot.cas} je potrjen. Se vidimo!`;
-    document.getElementById('formView').style.display='none';
-    document.getElementById('successView').classList.add('show');
-  } catch(e){alert(e.message);}
-  finally{btn.textContent='Potrdi rezervacijo →';btn.disabled=false;}
+function fmtSlot(slot) {
+  if (!slot) return '—';
+  const d = new Date(slot.datum + 'T00:00:00');
+  const dni = ['ned','pon','tor','sre','čet','pet','sob'];
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dni[d.getDay()]}, ${dd}/${mm}/${d.getFullYear()} ob ${slot.cas}`;
 }
 
-// ── ČAKALNA LISTA ─────────────────────────────────────────────
-function selectWaitlist(id) {
-  selectedWaitSlot=slots.find(s=>String(s.id)===String(id)); if(!selectedWaitSlot) return;
-  const d=new Date(selectedWaitSlot.datum);
-  document.getElementById('waitlistSummary').textContent=
-    `${DAYS_SL[d.getDay()]}, ${dmy(d)} — ${selectedWaitSlot.cas}`;
-  document.getElementById('waitlistFormView').style.display='block';
-  document.getElementById('waitlistSuccessView').classList.remove('show');
-  document.getElementById('waitlistPanel').classList.add('open');
-  document.getElementById('waitName').focus();
-}
-function closeWaitlist() {
-  document.getElementById('waitlistPanel').classList.remove('open');
-  ['waitName','waitEmail','waitPhone'].forEach(id=>document.getElementById(id).value='');
-  selectedWaitSlot=null;
-}
-async function submitWaitlist() {
-  const ime=document.getElementById('waitName').value.trim();
-  const email=document.getElementById('waitEmail').value.trim();
-  if(!ime||!email){alert('Ime in email sta obvezna.');return;}
-  const btn=document.getElementById('waitlistSubmitBtn');
-  btn.textContent='Prijavljam...'; btn.disabled=true;
-  try {
-    const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({
-      action:'addWaitlist',slot_id:selectedWaitSlot.id,ime,email,
-      telefon:document.getElementById('waitPhone').value.trim()
-    })});
-    const data=await r.json();
-    if(data.error) throw new Error(data.error);
-    document.getElementById('waitlistFormView').style.display='none';
-    document.getElementById('waitlistSuccessView').classList.add('show');
-    loadSlots();
-  } catch(e){alert('Napaka: '+e.message);}
-  finally{btn.textContent='Prijavi se na listo →';btn.disabled=false;}
-}
-document.getElementById('waitlistPanel').addEventListener('click',e=>{
-  if(e.target===document.getElementById('waitlistPanel')) closeWaitlist();
-});
+// ════════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════════
 
-// ── MOJE REZERVACIJE ──────────────────────────────────────────
-function toggleMyBookings() {
-  const list=document.getElementById('myBookingsList');
-  const arrow=document.getElementById('myBookingsArrow');
-  arrow.classList.toggle('open', list.classList.toggle('open'));
-}
-async function loadMyBookings() {
-  const vnos=document.getElementById('myEmail').value.trim();
-  if(!vnos){alert('Vnesite ime in priimek.');return;}
-  const res=document.getElementById('myBookingsResult');
-  res.innerHTML='<div style="font-size:13px;color:var(--accent);padding:8px 0">Iščem...</div>';
-  // Normaliziraj za primerjavo (ime, ali email/telefon kot dodatna možnost)
-  const vnosIme=vnos.toLowerCase().replace(/\s+/g,' ');
-  const vnosEmail=vnos.toLowerCase();
-  const vnosTel=vnos.replace(/\s|\/|-|\+/g,'');
-  try {
-    const [rb,rs,rset]=await Promise.all([
-      fetch(API_URL+'?action=getBookings').then(r=>r.json()),
-      fetch(API_URL+'?action=getSlots').then(r=>r.json()),
-      fetch(API_URL+'?action=getSettings').then(r=>r.json()).catch(()=>null)
-    ]);
-    // Uporabi svežo nastavitev odpovedi (npr. 2 uri)
-    if(rset && rset.odpoved_ure) ODPOVED_URE = rset.odpoved_ure;
-    const mine=rb.filter(b=>{
-      if(b.status!=='potrjena') return false;
-      const bIme=(b.ime||'').toString().toLowerCase().replace(/\s+/g,' ');
-      const bEmail=(b.email||'').toString().toLowerCase();
-      const bTel=(b.telefon||'').toString().replace(/\s|\/|-|\+/g,'');
-      return (bIme && bIme===vnosIme) ||
-             (vnosEmail.includes('@') && bEmail && bEmail===vnosEmail) ||
-             (vnosTel.length>=6 && bTel && bTel===vnosTel);
+function sheetToObjects(sheet) {
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  const headers = data[0];
+  return data.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => {
+      let v = row[i];
+      // Google Sheets shrani datume/čase kot Date objekte — pretvorimo v tekst
+      if (v instanceof Date) {
+        if (h === 'datum' || h === 'rok' || h === 'datum_vpisa' ||
+            h === 'datum_rezervacije' || h === 'datum_placila' || h === 'datum_prijave') {
+          // Datum → "yyyy-MM-dd"
+          v = Utilities.formatDate(v, Session.getScriptTimeZone() || 'Europe/Ljubljana', 'yyyy-MM-dd');
+        } else if (h === 'cas') {
+          // Čas → "HH:mm"
+          v = Utilities.formatDate(v, Session.getScriptTimeZone() || 'Europe/Ljubljana', 'HH:mm');
+        } else {
+          v = Utilities.formatDate(v, Session.getScriptTimeZone() || 'Europe/Ljubljana', 'yyyy-MM-dd');
+        }
+      }
+      obj[h] = v;
     });
-    if(!mine.length){res.innerHTML='<div style="font-size:13px;color:#aaa;padding:8px 0">Ni aktivnih rezervacij za to ime.</div>';return;}
-    const now=new Date();
-    res.innerHTML=mine.map(b=>{
-      const slot=rs.find(s=>String(s.id)===String(b.slot_id)); if(!slot) return '';
-      const slotDT=new Date(slot.datum+'T'+(slot.cas||'00:00')+':00');
-      const diffH=(slotDT-now)/(1000*60*60);
-      const df=`${DAYS_SL[slotDT.getDay()]}, ${dmy(slotDT)}`;
-      return `<div class="my-booking-row">
-        <div class="my-booking-info">
-          <div class="my-booking-date">${df} ob ${slot.cas||'—'}</div>
-          <div class="my-booking-type">${slot.naziv||'Pilates'}</div>
-        </div>
-        <div style="text-align:right">
-          ${diffH>=ODPOVED_URE
-            ?`<button class="btn-cancel" onclick="cancelMyBooking('${b.id}')">Odpovej</button>`
-            :`<div class="cancel-blocked">🔒 Zaklenjena<br><span style="font-size:10px">manj kot ${ODPOVED_URE}h</span></div>`}
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e){res.innerHTML=`<div style="font-size:13px;color:var(--error)">Napaka: ${e.message}</div>`;}
+    return obj;
+  });
 }
-async function cancelMyBooking(id) {
-  if(!confirm('Odpovej termin?')) return;
+
+function uid() { return Utilities.getUuid().substring(0, 8); }
+
+function findRowById(sheet, id) {
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == id) return i + 1;
+  }
+  return -1;
+}
+
+function getMonday(d) {
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+}
+
+// ════════════════════════════════════════════════════════════
+//  SETUP
+// ════════════════════════════════════════════════════════════
+
+function setupSheets() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const defs = {
+    Stranke:      ['id','ime','telefon','email','paket','ure_skupaj','ure_porabljene','opomba','datum_vpisa','st_odpovedi','st_noshow'],
+    Termini:      ['id','datum','cas','tip','max_mest','naziv','aktiven'],
+    Rezervacije:  ['id','slot_id','client_id','ime','email','telefon','datum_rezervacije','status','prisotnost'],
+    Placila:      ['id','client_id','opis','znesek','rok','status','datum_placila'],
+    CakalnaLista: ['id','slot_id','ime','email','telefon','datum_prijave'],
+    Nastavitve:   ['kljuc','vrednost']
+  };
+  Object.entries(defs).forEach(([name, headers]) => {
+    let sheet = ss.getSheetByName(name);
+    if (!sheet) sheet = ss.insertSheet(name);
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(headers);
+      sheet.getRange(1,1,1,headers.length).setFontWeight('bold').setBackground('#8A9E8C').setFontColor('white');
+    }
+  });
+  // Privzete nastavitve
+  nastaviPrivzete(ss);
+  return { ok: true, message: 'Listi pripravljeni!' };
+}
+
+// Privzete vrednosti nastavitev (če še ne obstajajo)
+function nastaviPrivzete(ss) {
+  const sheet = ss.getSheetByName('Nastavitve');
+  if (!sheet) return;
+  const obstojece = sheetToObjects(sheet).map(r => r.kljuc);
+  const privzete = {
+    'odpoved_ure': '4',
+    'paketi': '4× mesečno:4,8× mesečno:8,12× mesečno:12'
+  };
+  Object.entries(privzete).forEach(([k,v]) => {
+    if (obstojece.indexOf(k) < 0) sheet.appendRow([k, v]);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  POSODOBI STRUKTURO (za obstoječe baze)
+//  Zaženi ENKRAT če si že imel staro verzijo brez novih stolpcev
+// ════════════════════════════════════════════════════════════
+function posodobiStrukturo() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // Dodaj manjkajoče stolpce v Stranke
+  const strankeSheet = ss.getSheetByName(SHEETS.clients);
+  const strankeHead = strankeSheet.getRange(1,1,1,strankeSheet.getLastColumn()).getValues()[0];
+  if (strankeHead.indexOf('st_odpovedi') < 0) {
+    strankeSheet.getRange(1, strankeHead.length+1).setValue('st_odpovedi').setFontWeight('bold').setBackground('#8A9E8C').setFontColor('white');
+  }
+  if (strankeHead.indexOf('st_noshow') < 0) {
+    const col = strankeSheet.getLastColumn()+1;
+    strankeSheet.getRange(1, col).setValue('st_noshow').setFontWeight('bold').setBackground('#8A9E8C').setFontColor('white');
+  }
+
+  // Dodaj prisotnost v Rezervacije
+  const rezSheet = ss.getSheetByName(SHEETS.bookings);
+  const rezHead = rezSheet.getRange(1,1,1,rezSheet.getLastColumn()).getValues()[0];
+  if (rezHead.indexOf('prisotnost') < 0) {
+    rezSheet.getRange(1, rezHead.length+1).setValue('prisotnost').setFontWeight('bold').setBackground('#8A9E8C').setFontColor('white');
+  }
+
+  return { ok: true, message: 'Struktura posodobljena!' };
+}
+
+// ════════════════════════════════════════════════════════════
+//  HTTP HANDLERS
+// ════════════════════════════════════════════════════════════
+
+function doGet(e) {
+  const action = e.parameter.action;
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let result;
   try {
-    const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'cancelBooking',id})});
-    const data=await r.json();
-    if(data.error) throw new Error(data.error);
-    alert('Termin odpovedan.');
-    loadMyBookings(); loadSlots();
-  } catch(e){alert(e.message);}
+    if      (action === 'getSlots')      result = getSlots(ss);
+    else if (action === 'getClients')    result = getClients(ss);
+    else if (action === 'getBookings')   result = getBookings(ss);
+    else if (action === 'getPayments')   result = getPayments(ss);
+    else if (action === 'getDashboard')  result = getDashboard(ss);
+    else if (action === 'getWaitlist')   result = getWaitlist(ss);
+    else if (action === 'getSettings')   result = getSettings(ss);
+    else result = { error: 'Neznan ukaz' };
+  } catch(err) { result = { error: err.message }; }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function prevWeek(){weekOffset--;loadSlots();}
-function nextWeek(){weekOffset++;loadSlots();}
-document.getElementById('formPanel').addEventListener('click',e=>{
-  if(e.target===document.getElementById('formPanel')) closeForm();
-});
-
-// ── DODAJ NA DOMAČI ZASLON (iOS) ──────────────────────────────
-function dismissA2HS(){
-  document.getElementById('a2hsBanner').classList.remove('show');
-  try{ localStorage.setItem('moeva_a2hs_dismissed','1'); }catch(e){}
+function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  const action = data.action;
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let result;
+  try {
+    if      (action === 'addClient')       result = addClient(ss, data);
+    else if (action === 'updateClient')    result = updateClient(ss, data);
+    else if (action === 'deleteClient')    result = deleteClient(ss, data);
+    else if (action === 'addSlot')         result = addSlot(ss, data);
+    else if (action === 'updateSlot')      result = updateSlot(ss, data);
+    else if (action === 'deleteSlot')      result = deleteSlot(ss, data);
+    else if (action === 'addBooking')      result = addBooking(ss, data);
+    else if (action === 'cancelBooking')   result = cancelBooking(ss, data);
+    else if (action === 'addPayment')      result = addPayment(ss, data);
+    else if (action === 'updatePayment')   result = updatePayment(ss, data);
+    else if (action === 'deletePayment')   result = deletePayment(ss, data);
+    else if (action === 'addWaitlist')     result = addWaitlist(ss, data);
+    else if (action === 'removeWaitlist')  result = removeWaitlist(ss, data);
+    else if (action === 'oznaciPrisotnost') result = oznaciPrisotnost(ss, data);
+    else if (action === 'saveSettings')  result = saveSettings(ss, data);
+    else if (action === 'ponavljajocaRezervacija') result = ponavljajocaRezervacija(ss, data);
+    else result = { error: 'Neznan ukaz' };
+  } catch(err) { result = { error: err.message }; }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
-(function checkA2HS(){
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isStandalone = window.navigator.standalone === true ||
-    window.matchMedia('(display-mode: standalone)').matches;
-  let dismissed = false;
-  try{ dismissed = localStorage.getItem('moeva_a2hs_dismissed')==='1'; }catch(e){}
-  if(isIOS && !isStandalone && !dismissed){
-    document.getElementById('a2hsBanner').classList.add('show');
+
+// ════════════════════════════════════════════════════════════
+//  CLIENTS
+// ════════════════════════════════════════════════════════════
+
+function getClients(ss) {
+  return sheetToObjects(ss.getSheetByName(SHEETS.clients));
+}
+
+function addClient(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.clients);
+  const id = uid();
+  // Dodaj vrstico BREZ telefona
+  sheet.appendRow([
+    id, data.ime, '', data.email||'',
+    data.paket||'', data.ure_skupaj||0, 0,
+    data.opomba||'', new Date().toISOString().slice(0,10)
+  ]);
+  // Nato nastavi telefon kot BESEDILO (ohrani začetno nič)
+  const vrstica = sheet.getLastRow();
+  const telCell = sheet.getRange(vrstica, 3);
+  telCell.setNumberFormat('@');
+  telCell.setValue(String(data.telefon||''));
+
+  sendAdminEmail(`👤 Nova stranka: ${data.ime}`,
+    emailTemplate('Nova stranka dodana','👤',[
+      ['Ime', data.ime], ['Telefon', data.telefon], ['Email', data.email],
+      ['Paket', data.paket], ['Ur v paketu', data.ure_skupaj||'—'], ['Opomba', data.opomba]
+    ]));
+  return { ok: true, id };
+}
+
+function updateClient(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.clients);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Stranka ni najdena' };
+  // Ohrani obstoječe porabljene ure, če niso poslane
+  const obstojeca = sheetToObjects(sheet).find(x => String(x.id) === String(data.id));
+  const porabljene = data.ure_porabljene!==undefined ? data.ure_porabljene : (obstojeca?.ure_porabljene||0);
+
+  // Vpiši vse RAZEN telefona
+  sheet.getRange(row, 2).setValue(data.ime);
+  sheet.getRange(row, 4, 1, 5).setValues([[
+    data.email||'', data.paket||'', data.ure_skupaj||0, porabljene, data.opomba||''
+  ]]);
+  // Telefon posebej kot BESEDILO (ohrani začetno nič)
+  const telCell = sheet.getRange(row, 3);
+  telCell.setNumberFormat('@');
+  telCell.setValue(String(data.telefon||''));
+
+  // Če se je ime spremenilo, posodobi ga tudi v rezervacijah (poveži po telefonu ali emailu)
+  if (obstojeca && obstojeca.ime !== data.ime) {
+    posodobiImeVRezervacijah(ss, data.telefon, data.email, data.ime, obstojeca.ime);
   }
-})();
 
-loadSlots();
+  sendAdminEmail(`✏️ Stranka posodobljena: ${data.ime}`,
+    emailTemplate('Podatki stranke posodobljeni','✏️',[
+      ['Ime', data.ime], ['Paket', data.paket],
+      ['Obiski skupaj', data.ure_skupaj||'—'], ['Porabljeni', porabljene]
+    ]));
+  return { ok: true };
+}
 
-// Pasica "Brezplačni termini" — vidna do vključno 10.9.2026
-(function(){
+// Posodobi ime stranke v vseh njenih rezervacijah
+function posodobiImeVRezervacijah(ss, telefon, email, novoIme, staroIme) {
+  const sheet = ss.getSheetByName(SHEETS.bookings);
+  if (!sheet || sheet.getLastRow() < 2) return;
+  const head = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const imeCol = head.indexOf('ime') + 1;
+  const telCol = head.indexOf('telefon') + 1;
+  const emailCol = head.indexOf('email') + 1;
+  if (imeCol < 1) return;
+
+  const norm = t => String(t||'').replace(/[\s\/+-]/g,'').replace(/^0+/,'');
+  const telN = norm(telefon);
+  const emailN = String(email||'').trim().toLowerCase();
+
+  const vrstice = sheetToObjects(sheet);
+  vrstice.forEach((b, i) => {
+    const ujemTel = telN && norm(b.telefon) === telN;
+    const ujemEmail = emailN && String(b.email||'').trim().toLowerCase() === emailN;
+    const ujemStaroIme = staroIme && b.ime === staroIme;
+    // Posodobi če se ujema kontakt ALI staro ime
+    if (ujemTel || ujemEmail || ujemStaroIme) {
+      sheet.getRange(i + 2, imeCol).setValue(novoIme);
+    }
+  });
+}
+
+function deleteClient(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.clients);
+  const c = sheetToObjects(sheet).find(x => x.id === data.id);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Stranka ni najdena' };
+  sheet.deleteRow(row);
+  sendAdminEmail(`🗑️ Stranka izbrisana: ${c?.ime||'—'}`,
+    emailTemplate('Stranka izbrisana','🗑️',[['Ime', c?.ime], ['Email', c?.email], ['Paket', c?.paket]]));
+  return { ok: true };
+}
+
+// ════════════════════════════════════════════════════════════
+//  SLOTS
+// ════════════════════════════════════════════════════════════
+
+function getSlots(ss) {
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  const bookSheet = ss.getSheetByName(SHEETS.bookings);
+  const waitSheet = ss.getSheetByName(SHEETS.waitlist);
+  const slots = sheetToObjects(sheet).filter(s => s.aktiven != false && s.aktiven !== 'false');
+  const bookings = sheetToObjects(bookSheet).filter(b => b.status === 'potrjena');
+  const waitlist = sheetToObjects(waitSheet);
+
+  const counts = {};
+  bookings.forEach(b => { counts[b.slot_id] = (counts[b.slot_id]||0) + 1; });
+
+  const waitCounts = {};
+  waitlist.forEach(w => { waitCounts[w.slot_id] = (waitCounts[w.slot_id]||0) + 1; });
+
+  return slots.map(s => ({
+    ...s,
+    rezervirano: counts[s.id] || 0,
+    prostih: Math.max(0, (parseInt(s.max_mest)||1) - (counts[s.id]||0)),
+    cakalna: waitCounts[s.id] || 0
+  }));
+}
+
+function addSlot(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  const id = uid();
+  sheet.appendRow([id, data.datum, data.cas, data.tip||'Individualni', data.max_mest||1, data.naziv||'', true]);
+  sendAdminEmail(`📅 Nov termin: ${data.datum} ob ${data.cas}`,
+    emailTemplate('Nov termin dodan','📅',[
+      ['Datum', data.datum], ['Čas', data.cas],
+      ['Vrsta', data.tip], ['Naziv', data.naziv], ['Mesta', data.max_mest||1]
+    ]));
+  return { ok: true, id };
+}
+
+function updateSlot(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Termin ni najden' };
+  sheet.getRange(row, 2, 1, 6).setValues([[
+    data.datum, data.cas, data.tip||'Individualni',
+    data.max_mest||1, data.naziv||'', data.aktiven !== false
+  ]]);
+  sendAdminEmail(`✏️ Termin spremenjen: ${data.datum} ob ${data.cas}`,
+    emailTemplate('Termin posodobljen','✏️',[
+      ['Datum', data.datum], ['Čas', data.cas], ['Vrsta', data.tip], ['Mesta', data.max_mest]
+    ]));
+  return { ok: true };
+}
+
+function deleteSlot(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  const s = sheetToObjects(sheet).find(x => x.id === data.id);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Termin ni najden' };
+  sheet.deleteRow(row);
+  sendAdminEmail(`🗑️ Termin izbrisan: ${s?.datum||'—'} ob ${s?.cas||'—'}`,
+    emailTemplate('Termin izbrisan','🗑️',[['Datum', s?.datum], ['Čas', s?.cas], ['Vrsta', s?.tip]]));
+  return { ok: true };
+}
+
+// ════════════════════════════════════════════════════════════
+//  BOOKINGS
+// ════════════════════════════════════════════════════════════
+
+function getBookings(ss) {
+  return sheetToObjects(ss.getSheetByName(SHEETS.bookings));
+}
+
+function addBooking(ss, data) {
+  const slotSheet = ss.getSheetByName(SHEETS.slots);
+  const bookSheet = ss.getSheetByName(SHEETS.bookings);
+  const clientSheet = ss.getSheetByName(SHEETS.clients);
+
+  const slots = sheetToObjects(slotSheet);
+  const slot = slots.find(s => s.id === data.slot_id);
+  if (!slot) return { error: 'Termin ne obstaja' };
+
+  // ── PREVERI ali je stranka v bazi (po emailu ALI telefonu) ──
+  const clients = sheetToObjects(clientSheet);
+  const vnesEmail = (data.email||'').trim().toLowerCase();
+  const vnesTel = (data.telefon||'').replace(/\s|\/|-/g,''); // odstrani presledke
+  const najdena = clients.find(c => {
+    const cEmail = (c.email||'').trim().toLowerCase();
+    const cTel = (c.telefon||'').toString().replace(/\s|\/|-/g,'');
+    return (vnesEmail && cEmail === vnesEmail) || (vnesTel && cTel && cTel === vnesTel);
+  });
+  if (!najdena) {
+    return { error: 'Ta email/telefon ni v naši bazi strank. Za prijavo se obrnite na Evo.' };
+  }
+
+  const existing = sheetToObjects(bookSheet).filter(b => b.slot_id === data.slot_id && b.status === 'potrjena');
+  if (existing.length >= parseInt(slot.max_mest||1)) return { error: 'Termin je zaseden' };
+
+  // Preveri duplikat (po client_id, emailu ali telefonu)
+  const dup = existing.find(b =>
+    b.client_id === najdena.id ||
+    (vnesEmail && (b.email||'').trim().toLowerCase() === vnesEmail)
+  );
+  if (dup) return { error: 'Že imate rezervacijo za ta termin' };
+
+  const id = uid();
+  bookSheet.appendRow([
+    id, data.slot_id, najdena.id,
+    najdena.ime, najdena.email||'', najdena.telefon||'',
+    new Date().toISOString().slice(0,10), 'potrjena', ''
+  ]);
+
+  // Uporabi podatke iz baze (ne kar je vnesel uporabnik)
+  data.ime = najdena.ime;
+  data.email = najdena.email;
+  data.telefon = najdena.telefon;
+  data.client_id = najdena.id;
+
+  // ── Paket sledenje: odštej 1 uro ──────────────────────────
+  let paketOpozorilo = null;
+  if (data.client_id) {
+    const clients = sheetToObjects(clientSheet);
+    const client = clients.find(c => c.id === data.client_id);
+    if (client && parseInt(client.ure_skupaj||0) > 0) {
+      const clientRow = findRowById(clientSheet, data.client_id);
+      const porabljene = parseInt(client.ure_porabljene||0) + 1;
+      clientSheet.getRange(clientRow, 7).setValue(porabljene); // stolpec 7 = ure_porabljene
+      const ostalo = parseInt(client.ure_skupaj||0) - porabljene;
+      if (ostalo <= PAKET_OPOZORILO_URE && ostalo >= 0) {
+        paketOpozorilo = ostalo;
+      }
+    }
+  }
+
+  const prostihPo = parseInt(slot.max_mest||1) - existing.length - 1;
+  sendAdminEmail(`🟢 Nova rezervacija: ${data.ime}`,
+    emailTemplate('Nova rezervacija','🟢',[
+      ['Stranka', data.ime], ['Email', data.email], ['Telefon', data.telefon],
+      ['Termin', fmtSlot(slot)], ['Vrsta', slot.tip], ['Prosto še', `${prostihPo} mest`]
+    ], paketOpozorilo !== null
+      ? `⚠️ <strong>${data.ime}</strong> ima v paketu le še <strong>${paketOpozorilo} ur</strong>.`
+      : null
+  ));
+
+  // ── Potrdilni email stranki ────────────────────────────────
+  if (data.email) {
+    const odpovedUre = parseInt(getNastavitev(ss, 'odpoved_ure', '4')) || 4;
+    sendEmail(data.email, `Potrjena rezervacija — ${STUDIO_IME}`,
+      emailTemplate('Rezervacija potrjena','✅',[
+        ['Ime', data.ime],
+        ['Termin', fmtSlot(slot)],
+        ['Vrsta', slot.tip||'—'],
+        ['Naziv', slot.naziv||'—'],
+      ], `Odpoved je možna do ${odpovedUre} ure pred treningom. Se vidimo!`)
+    );
+  }
+
+  return { ok: true, id };
+}
+
+function cancelBooking(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.bookings);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Rezervacija ni najdena' };
+
+  const booking = sheetToObjects(sheet).find(b => b.id === data.id);
+  let slot = null;
+
+  if (booking) {
+    const slotSheet = ss.getSheetByName(SHEETS.slots);
+    slot = sheetToObjects(slotSheet).find(s => s.id === booking.slot_id);
+
+    // Preverjanje pravila odpovedi (nastavljivo)
+    if (slot && slot.datum && slot.cas) {
+      const odpovedUre = parseInt(getNastavitev(ss, 'odpoved_ure', '4')) || 4;
+      const slotDT = new Date(slot.datum + 'T' + slot.cas + ':00');
+      const diffH = (slotDT - new Date()) / (1000*60*60);
+      if (diffH < odpovedUre) return { error: `Odpoved ni mogoča — do termina je manj kot ${odpovedUre} ure.` };
+    }
+
+    // ── Paket sledenje: vrni 1 uro ─────────────────────────
+    if (booking.client_id) {
+      const clientSheet = ss.getSheetByName(SHEETS.clients);
+      const client = sheetToObjects(clientSheet).find(c => c.id === booking.client_id);
+      if (client) {
+        const clientRow = findRowById(clientSheet, booking.client_id);
+        // Vrni uro v paket
+        if (parseInt(client.ure_skupaj||0) > 0) {
+          const porabljene = Math.max(0, parseInt(client.ure_porabljene||0) - 1);
+          clientSheet.getRange(clientRow, 7).setValue(porabljene);
+        }
+        // Preštej odpoved (st_odpovedi je stolpec 10)
+        const head = clientSheet.getRange(1,1,1,clientSheet.getLastColumn()).getValues()[0];
+        const odpCol = head.indexOf('st_odpovedi') + 1;
+        if (odpCol > 0) {
+          const trenutno = parseInt(client.st_odpovedi||0) + 1;
+          clientSheet.getRange(clientRow, odpCol).setValue(trenutno);
+        }
+      }
+    }
+
+    sendAdminEmail(`🔴 Odpoved: ${booking.ime}`,
+      emailTemplate('Rezervacija odpovedana','🔴',[
+        ['Stranka', booking.ime], ['Email', booking.email], ['Telefon', booking.telefon],
+        ['Termin', fmtSlot(slot)], ['Čas odpovedi', new Date().toLocaleString('sl-SI')]
+      ]));
+
+    // Obvesti prvega na čakalni listi
+    notifyWaitlist(ss, booking.slot_id, slot);
+  }
+
+  sheet.getRange(row, 8).setValue('odpovedana');
+  return { ok: true };
+}
+
+// ════════════════════════════════════════════════════════════
+//  WAITLIST — čakalna lista
+// ════════════════════════════════════════════════════════════
+
+function getWaitlist(ss) {
+  return sheetToObjects(ss.getSheetByName(SHEETS.waitlist));
+}
+
+// ════════════════════════════════════════════════════════════
+//  NASTAVITVE — pravilo odpovedi in paketi
+// ════════════════════════════════════════════════════════════
+
+function getSettings(ss) {
+  ss = ss || SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName('Nastavitve');
+  if (!sheet) { nastaviPrivzete(ss); sheet = ss.getSheetByName('Nastavitve'); }
+  if (!sheet) return { odpoved_ure: 4, paketi: [] };
+  const rows = sheetToObjects(sheet);
+  const map = {};
+  rows.forEach(r => { map[r.kljuc] = r.vrednost; });
+  // Parsiraj pakete "4× mesečno:4,8× mesečno:8" → [{ime, ure}]
+  const paketiStr = map.paketi || '';
+  const paketi = paketiStr.split(',').filter(Boolean).map(p => {
+    const [ime, ure] = p.split(':');
+    return { ime: (ime||'').trim(), ure: parseInt(ure)||0 };
+  });
+  return {
+    odpoved_ure: parseInt(map.odpoved_ure) || 4,
+    paketi: paketi
+  };
+}
+
+function getNastavitev(ss, kljuc, privzeto) {
+  const sheet = ss.getSheetByName('Nastavitve');
+  if (!sheet) return privzeto;
+  const row = sheetToObjects(sheet).find(r => r.kljuc === kljuc);
+  return row ? row.vrednost : privzeto;
+}
+
+function saveSettings(ss, data) {
+  let sheet = ss.getSheetByName('Nastavitve');
+  if (!sheet) { nastaviPrivzete(ss); sheet = ss.getSheetByName('Nastavitve'); }
+
+  function setKljuc(kljuc, vrednost) {
+    const rows = sheetToObjects(sheet);
+    const idx = rows.findIndex(r => r.kljuc === kljuc);
+    if (idx >= 0) {
+      sheet.getRange(idx + 2, 2).setValue(vrednost); // +2: glava + 1-index
+    } else {
+      sheet.appendRow([kljuc, vrednost]);
+    }
+  }
+
+  if (data.odpoved_ure !== undefined) setKljuc('odpoved_ure', String(data.odpoved_ure));
+  if (data.paketi !== undefined) setKljuc('paketi', data.paketi); // že kot string "ime:ure,ime:ure"
+
+  return { ok: true };
+}
+
+function addWaitlist(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.waitlist);
+
+  // Preveri duplikat
+  const existing = sheetToObjects(sheet).find(w => w.slot_id === data.slot_id && w.email === data.email);
+  if (existing) return { error: 'Že ste na čakalni listi za ta termin.' };
+
+  const id = uid();
+  sheet.appendRow([id, data.slot_id, data.ime, data.email||'', data.telefon||'', new Date().toISOString().slice(0,10)]);
+
+  // Poišči info o terminu
+  const slotSheet = ss.getSheetByName(SHEETS.slots);
+  const slot = sheetToObjects(slotSheet).find(s => s.id === data.slot_id);
+
+  sendAdminEmail(`📋 Čakalna lista: ${data.ime}`,
+    emailTemplate('Nova prijava na čakalno listo','📋',[
+      ['Stranka', data.ime], ['Email', data.email], ['Telefon', data.telefon],
+      ['Termin', fmtSlot(slot)]
+    ]));
+
+  // Potrdilni email osebi na čakalni listi
+  if (data.email) {
+    sendEmail(data.email, `Čakalna lista — ${STUDIO_IME}`,
+      emailTemplate('Na čakalni listi ste','📋',[
+        ['Ime', data.ime],
+        ['Termin', fmtSlot(slot)],
+      ], 'Takoj ko se sprosti mesto, vas obvestimo. Hvala za potrpežljivost!')
+    );
+  }
+
+  return { ok: true, id };
+}
+
+function removeWaitlist(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.waitlist);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Vnos ni najden' };
+  sheet.deleteRow(row);
+  return { ok: true };
+}
+
+function notifyWaitlist(ss, slotId, slot) {
+  const sheet = ss.getSheetByName(SHEETS.waitlist);
+  const waiting = sheetToObjects(sheet).filter(w => w.slot_id === slotId);
+  if (!waiting.length) return;
+
+  // Obvesti prvega na listi
+  const first = waiting[0];
+  if (first.email) {
+    sendEmail(first.email, `🎉 Sprostilo se je mesto — ${STUDIO_IME}`,
+      emailTemplate('Sprostilo se je mesto!','🎉',[
+        ['Termin', fmtSlot(slot)],
+        ['Vrsta', slot?.tip||'—'],
+      ], `Hitro rezervirajte — mesto je odprto na prvi pridejo, prvi serve!`)
+    );
+  }
+
+  sendAdminEmail(`📋 Obveščen čakalnik: ${first.ime}`,
+    emailTemplate('Čakalnik obveščen o prostem mestu','📋',[
+      ['Stranka', first.ime], ['Email', first.email], ['Termin', fmtSlot(slot)]
+    ]));
+}
+
+// ════════════════════════════════════════════════════════════
+//  PAYMENTS
+// ════════════════════════════════════════════════════════════
+
+function getPayments(ss) {
+  return sheetToObjects(ss.getSheetByName(SHEETS.payments));
+}
+
+function addPayment(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.payments);
+  const id = uid();
+  const clients = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+  const client = clients.find(c => c.id === data.client_id);
+  sheet.appendRow([id, data.client_id, data.opis||'', data.znesek, data.rok||'', data.status||'caka', '']);
+  const statusLabel = {caka:'Čaka', placano:'Plačano', zamuda:'Zamuda'}[data.status||'caka'];
+  sendAdminEmail(`💶 Novo plačilo: ${client?.ime||'—'}`,
+    emailTemplate('Novo plačilo dodano','💶',[
+      ['Stranka', client?.ime], ['Opis', data.opis],
+      ['Znesek', `${parseFloat(data.znesek||0).toFixed(2)} €`],
+      ['Rok', data.rok], ['Status', statusLabel]
+    ]));
+  return { ok: true, id };
+}
+
+function updatePayment(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.payments);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Plačilo ni najdeno' };
+  const clients = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+  const client = clients.find(c => c.id === data.client_id);
+  const wasPaid = data.status === 'placano';
+  sheet.getRange(row, 3, 1, 5).setValues([[
+    data.opis||'', data.znesek, data.rok||'', data.status,
+    wasPaid ? new Date().toISOString().slice(0,10) : ''
+  ]]);
+  const statusLabel = {caka:'Čaka', placano:'✅ Plačano', zamuda:'⚠️ Zamuda'}[data.status]||data.status;
+  sendAdminEmail(`${wasPaid?'✅':'💶'} Plačilo ${wasPaid?'potrjeno':'posodobljeno'}: ${client?.ime||'—'}`,
+    emailTemplate(wasPaid?'Plačilo potrjeno':'Plačilo posodobljeno', wasPaid?'✅':'💶',[
+      ['Stranka', client?.ime], ['Opis', data.opis],
+      ['Znesek', `${parseFloat(data.znesek||0).toFixed(2)} €`], ['Status', statusLabel]
+    ]));
+  return { ok: true };
+}
+
+function deletePayment(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.payments);
+  const p = sheetToObjects(sheet).find(x => x.id === data.id);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Plačilo ni najdeno' };
+  sheet.deleteRow(row);
+  const clients = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+  const client = clients.find(c => c.id === p?.client_id);
+  sendAdminEmail(`🗑️ Plačilo izbrisano: ${client?.ime||'—'}`,
+    emailTemplate('Plačilo izbrisano','🗑️',[
+      ['Stranka', client?.ime], ['Opis', p?.opis],
+      ['Znesek', `${parseFloat(p?.znesek||0).toFixed(2)} €`]
+    ]));
+  return { ok: true };
+}
+
+// ════════════════════════════════════════════════════════════
+//  OPOMNIK ~12H PRED TRENINGOM — zaženi kot časovni sprožilec
+//     Apps Script → Ure → Dodaj sprožilec → sendDayBeforeReminders
+//     Nastavi: VSAKO URO (Hour timer → Every hour)
+//     Pošlje opomnik strankam, katerih termin je čez ~12 ur.
+// ════════════════════════════════════════════════════════════
+
+function sendDayBeforeReminders() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const slots = sheetToObjects(ss.getSheetByName(SHEETS.slots));
+  const bookings = sheetToObjects(ss.getSheetByName(SHEETS.bookings));
+
+  const zdaj = new Date();
+  const odpovedUre = parseInt(getNastavitev(ss, 'odpoved_ure', '4')) || 4;
+  let skupajPoslano = 0;
+
+  slots.forEach(slot => {
+    if (!slot.datum || !slot.cas) return;
+    if (slot.aktiven === false || slot.aktiven === 'false') return;
+
+    // Sestavi datum+čas termina
+    const [y,m,d] = slot.datum.split('-').map(Number);
+    const [hh,mm] = slot.cas.split(':').map(Number);
+    const terminDT = new Date(y, m-1, d, hh, mm, 0);
+
+    // Koliko ur do termina
+    const urDoTermina = (terminDT - zdaj) / (1000*60*60);
+
+    // Pošlji če je med (OPOMNIK_URE - 0.5) in (OPOMNIK_URE + 0.5) ur
+    // → ujame 12h okno, če sprožilec teče vsako uro
+    if (urDoTermina < (OPOMNIK_URE - 0.5) || urDoTermina > (OPOMNIK_URE + 0.5)) return;
+
+    const slotBookings = bookings.filter(b => b.slot_id === slot.id && b.status === 'potrjena');
+    slotBookings.forEach(b => {
+      if (!b.email) return;
+      sendEmail(b.email, `Opomnik: trening ob ${slot.cas} — ${STUDIO_IME}`,
+        emailTemplate('Opomnik za trening','⏰',[
+          ['Ime', b.ime],
+          ['Datum', fmtSlot(slot)],
+          ['Čas', slot.cas],
+          ['Naziv', slot.naziv||'Pilates'],
+        ], `Vaš trening je čez približno 12 ur. Odpoved je možna do ${odpovedUre} ure pred treningom. Se vidimo!`)
+      );
+      skupajPoslano++;
+    });
+  });
+
+  // Obvestilo tebi koliko opomnikov je šlo ven
+  if (skupajPoslano > 0) {
+    sendAdminEmail(`📨 Poslano ${skupajPoslano} opomnikov`,
+      emailTemplate('Opomniki poslani','📨',[
+        ['Datum', tomorrowStr],
+        ['Terminov', tomorrowSlots.length],
+        ['Opomnikov poslanih', skupajPoslano]
+      ]));
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ════════════════════════════════════════════════════════════
+
+function getDashboard(ss) {
+  const clients  = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+  const slots    = sheetToObjects(ss.getSheetByName(SHEETS.slots));
+  const bookings = sheetToObjects(ss.getSheetByName(SHEETS.bookings));
+  const payments = sheetToObjects(ss.getSheetByName(SHEETS.payments));
+
+  const today = new Date().toISOString().slice(0,10);
+  const weekStart = getMonday(new Date());
+  const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+
+  const weekSlots = slots.filter(s =>
+    s.datum >= weekStart.toISOString().slice(0,10) &&
+    s.datum <= weekEnd.toISOString().slice(0,10));
+
+  const paidMonth = payments
+    .filter(p => p.status === 'placano' && p.rok && p.rok.slice(0,7) === today.slice(0,7))
+    .reduce((s,p) => s + parseFloat(p.znesek||0), 0);
+
+  const unpaid = payments
+    .filter(p => p.status !== 'placano')
+    .reduce((s,p) => s + parseFloat(p.znesek||0), 0);
+
+  // Stranke z malo urami v paketu
+  const paketOpozorila = clients.filter(c => {
+    const skupaj = parseInt(c.ure_skupaj||0);
+    const porabljene = parseInt(c.ure_porabljene||0);
+    return skupaj > 0 && (skupaj - porabljene) <= PAKET_OPOZORILO_URE;
+  }).map(c => ({
+    ime: c.ime,
+    ostalo: parseInt(c.ure_skupaj||0) - parseInt(c.ure_porabljene||0)
+  }));
+
+  return {
+    stevilo_strank: clients.length,
+    termini_teden: weekSlots.length,
+    placano_mesec: paidMonth,
+    neplacano: unpaid,
+    paket_opozorila: paketOpozorila
+  };
+}
+
+// ════════════════════════════════════════════════════════════
+//  1. TEDENSKI POVZETEK — vsak ponedeljek ob 7:00
+//     Apps Script → ⏰ → Dodaj sprožilec → sendWeeklySummary
+//     Nastavi: vsak teden, ponedeljek, 7:00–8:00
+// ════════════════════════════════════════════════════════════
+
+function sendWeeklySummary() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const clients  = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+  const slots    = sheetToObjects(ss.getSheetByName(SHEETS.slots));
+  const bookings = sheetToObjects(ss.getSheetByName(SHEETS.bookings));
+  const payments = sheetToObjects(ss.getSheetByName(SHEETS.payments));
+
+  const weekStart = getMonday(new Date());
+  const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  const wsStr = weekStart.toISOString().slice(0,10);
+  const weStr = weekEnd.toISOString().slice(0,10);
+
+  // Termini ta teden
+  const weekSlots = slots
+    .filter(s => s.datum >= wsStr && s.datum <= weStr && s.aktiven !== 'false')
+    .sort((a,b) => (a.datum+a.cas).localeCompare(b.datum+b.cas));
+
+  // Rezervacije za ta teden
+  const weekBookings = bookings.filter(b =>
+    b.status === 'potrjena' &&
+    weekSlots.some(s => s.id === b.slot_id)
+  );
+
+  // Pričakovani prihodki (neplačani z rokom ta teden)
+  const weekPayments = payments.filter(p =>
+    p.status !== 'placano' && p.rok >= wsStr && p.rok <= weStr
+  );
+  const pricakovano = weekPayments.reduce((s,p) => s+parseFloat(p.znesek||0), 0);
+
+  // Neplačano skupaj
+  const neplacano = payments
+    .filter(p => p.status !== 'placano')
+    .reduce((s,p) => s+parseFloat(p.znesek||0), 0);
+
+  // Zgradi HTML urnik po dnevih
+  const dni = ['ned','pon','tor','sre','čet','pet','sob'];
+  let urnikHtml = '';
+  weekSlots.forEach(s => {
+    const prijavljeni = weekBookings.filter(b => b.slot_id === s.id);
+    const d = new Date(s.datum);
+    const full = prijavljeni.length >= parseInt(s.max_mest||1);
+    urnikHtml += `
+      <tr style="border-top:1px solid #EEF3EE">
+        <td style="padding:8px 14px;font-size:13px;color:#7A6E5F;white-space:nowrap">${dni[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.</td>
+        <td style="padding:8px 14px;font-size:13px;font-weight:500">${s.cas} · ${s.tip}</td>
+        <td style="padding:8px 14px;font-size:13px;text-align:center">
+          <span style="background:${full?'#fce4ec':'#EEF3EE'};color:${full?'#880e4f':'#2e7d32'};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500">
+            ${prijavljeni.length}/${s.max_mest||1}
+          </span>
+        </td>
+        <td style="padding:8px 14px;font-size:12px;color:#aaa">${prijavljeni.map(b=>b.ime).join(', ')||'—'}</td>
+      </tr>`;
+  });
+
+  const html = `
+  <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;background:#FAF9F7;border-radius:10px;overflow:hidden;border:1px solid #DDD8D0">
+    <div style="background:#2C2C2C;padding:22px 24px">
+      <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#C5D4C6;margin-bottom:6px">${STUDIO_IME}</div>
+      <div style="font-size:22px;color:#FAF9F7;font-weight:300">📅 Tedenski povzetek</div>
+      <div style="font-size:13px;color:#aaa;margin-top:4px">${wsStr} – ${weStr}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:white;border-bottom:1px solid #EEF3EE">
+      <div style="padding:16px 18px;text-align:center;border-right:1px solid #EEF3EE">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7A6E5F;margin-bottom:4px">Terminov</div>
+        <div style="font-size:28px;font-weight:300;color:#2C2C2C">${weekSlots.length}</div>
+      </div>
+      <div style="padding:16px 18px;text-align:center;border-right:1px solid #EEF3EE">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7A6E5F;margin-bottom:4px">Prijavljenih</div>
+        <div style="font-size:28px;font-weight:300;color:#2C2C2C">${weekBookings.length}</div>
+      </div>
+      <div style="padding:16px 18px;text-align:center">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7A6E5F;margin-bottom:4px">Neplačano</div>
+        <div style="font-size:28px;font-weight:300;color:#C17A6A">${neplacano.toFixed(0)} €</div>
+      </div>
+    </div>
+    ${weekSlots.length > 0 ? `
+    <table style="width:100%;border-collapse:collapse;background:white">
+      <thead><tr style="background:#EEF3EE">
+        <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7A6E5F;text-align:left;font-weight:500">Dan</th>
+        <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7A6E5F;text-align:left;font-weight:500">Termin</th>
+        <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7A6E5F;text-align:center;font-weight:500">Mesta</th>
+        <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7A6E5F;text-align:left;font-weight:500">Stranke</th>
+      </tr></thead>
+      <tbody>${urnikHtml}</tbody>
+    </table>` : '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Ta teden ni terminov.</div>'}
+    <div style="padding:12px 24px;font-size:11px;color:#aaa;border-top:1px solid #DDD8D0">
+      Samodejni tedenski povzetek · ${STUDIO_IME}
+    </div>
+  </div>`;
+
+  sendAdminEmail(`📅 Tedenski povzetek ${wsStr}`, html);
+}
+
+// ════════════════════════════════════════════════════════════
+//  2. NEPLAČANI OPOMNIK — vsak dan ob 9:00
+//     Apps Script → ⏰ → Dodaj sprožilec → sendOverdueReminders
+//     Nastavi: vsak dan, 9:00–10:00
+// ════════════════════════════════════════════════════════════
+
+function sendOverdueReminders() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const payments = sheetToObjects(ss.getSheetByName(SHEETS.payments));
+  const clients  = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+
+  const today = new Date().toISOString().slice(0,10);
+
+  // Najdi zamude (rok pretečen, še ni plačano)
+  const overdue = payments.filter(p =>
+    p.status !== 'placano' && p.rok && p.rok < today
+  );
+
+  if (!overdue.length) return;
+
+  // Posodobi status na 'zamuda'
+  const sheet = ss.getSheetByName(SHEETS.payments);
+  overdue.forEach(p => {
+    if (p.status !== 'zamuda') {
+      const row = findRowById(sheet, p.id);
+      if (row > 0) sheet.getRange(row, 6).setValue('zamuda');
+    }
+  });
+
+  // Pošlji tebi povzetek vseh zamud
+  const rows = overdue.map(p => {
+    const client = clients.find(c => c.id === p.client_id);
+    return [client?.ime||'—', `${parseFloat(p.znesek||0).toFixed(2)} €`, p.rok||'—', p.opis||'—'];
+  });
+
+  const rowsHtml = rows.map(([ime, znesek, rok, opis]) => `
+    <tr style="border-top:1px solid #EEF3EE">
+      <td style="padding:8px 14px;font-size:13px;font-weight:500">${ime}</td>
+      <td style="padding:8px 14px;font-size:13px;color:#C17A6A;font-weight:500">${znesek}</td>
+      <td style="padding:8px 14px;font-size:13px;color:#aaa">${rok}</td>
+      <td style="padding:8px 14px;font-size:13px;color:#aaa">${opis}</td>
+    </tr>`).join('');
+
+  const skupaj = overdue.reduce((s,p) => s+parseFloat(p.znesek||0), 0);
+
+  const html = `
+  <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;background:#FAF9F7;border-radius:10px;overflow:hidden;border:1px solid #DDD8D0">
+    <div style="background:#2C2C2C;padding:22px 24px">
+      <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#C5D4C6;margin-bottom:6px">${STUDIO_IME}</div>
+      <div style="font-size:22px;color:#FAF9F7;font-weight:300">⚠️ Neplačani računi</div>
+    </div>
+    <div style="background:white;padding:14px 18px;border-bottom:1px solid #EEF3EE">
+      <span style="font-size:13px;color:#7A6E5F">Skupaj neplačano: </span>
+      <strong style="font-size:16px;color:#C17A6A">${skupaj.toFixed(2)} €</strong>
+    </div>
+    <table style="width:100%;border-collapse:collapse;background:white">
+      <thead><tr style="background:#EEF3EE">
+        <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7A6E5F;text-align:left;font-weight:500">Stranka</th>
+        <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7A6E5F;text-align:left;font-weight:500">Znesek</th>
+        <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7A6E5F;text-align:left;font-weight:500">Rok</th>
+        <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7A6E5F;text-align:left;font-weight:500">Opis</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div style="padding:12px 24px;font-size:11px;color:#aaa;border-top:1px solid #DDD8D0">
+      ${today} · ${STUDIO_IME}
+    </div>
+  </div>`;
+
+  sendAdminEmail(`⚠️ ${overdue.length} neplačanih računov — ${skupaj.toFixed(2)} €`, html);
+
+  // Pošlji tudi email vsaki stranki (če ima email)
+  overdue.forEach(p => {
+    const client = clients.find(c => c.id === p.client_id);
+    if (!client?.email) return;
+    sendEmail(client.email, `Opomnik za plačilo — ${STUDIO_IME}`,
+      emailTemplate('Opomnik za plačilo','⚠️',[
+        ['Opis',    p.opis||'—'],
+        ['Znesek',  `${parseFloat(p.znesek||0).toFixed(2)} €`],
+        ['Rok',     p.rok||'—'],
+      ], 'Prosimo, uredite plačilo čim prej. Hvala!')
+    );
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  USTVARI FIKSNE TEDENSKE TERMINE
+//  MOEVA urnik:
+//    Ponedeljek 20:00–21:00
+//    Torek      20:00–21:00
+//    Sreda      18:00–18:45
+//    Četrtek    20:00–21:00
+//
+//  ZAŽENI: izberi 'generirajTermine' → Zaženi
+//  Ustvari termine za 6 mesecev vnaprej (preskoči obstoječe in praznike)
+// ════════════════════════════════════════════════════════════
+
+function generirajTermine() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  const obstojeci = sheetToObjects(sheet);
+
+  // Urnik: dan v tednu (1=pon, 2=tor, 3=sre, 4=čet) → {ura, mest}
+  const URNIK = {
+    1: { cas: '20:00', mest: 8 },  // ponedeljek
+    2: { cas: '20:00', mest: 8 },  // torek
+    3: { cas: '18:00', mest: 8 },  // sreda
+    4: { cas: '20:00', mest: 8 }   // četrtek
+  };
+
+  // Slovenski prazniki (preskočimo jih)
+  const PRAZNIKI = ['01-01','01-02','02-08','04-27','05-01','05-02',
+    '06-25','08-15','10-31','11-01','12-25','12-26'];
+  const PRAZNIKI_DATUM = ['2025-04-21','2026-04-06','2027-03-29']; // velikonočni ponedeljek
+
   const danes = new Date();
   danes.setHours(0,0,0,0);
-  const konec = new Date(2026, 8, 10, 23, 59); // 10.9.2026
-  if(danes <= konec){
-    const b = document.getElementById('freeBanner');
-    if(b) b.style.display = 'block';
-  }
-})();
+  const konec = new Date(danes);
+  konec.setMonth(konec.getMonth() + 6); // 6 mesecev vnaprej
 
-// Pasica "Zaslužen odmor" — vidna 11.9. do vključno 17.9.2026
-(function(){
+  let ustvarjenih = 0;
+  let preskocenih = 0;
+  const novVrstice = [];
+
+  for (let d = new Date(danes); d <= konec; d.setDate(d.getDate() + 1)) {
+    const dan = d.getDay(); // 0=ned, 1=pon, ...
+    if (!URNIK[dan]) continue; // samo pon-čet
+
+    // Sestavi datum ročno (brez časovnega pasu, da se dan ne premakne)
+    const datumStr = d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+    const md = String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+
+    // Preskoči praznike
+    if (PRAZNIKI.indexOf(md) >= 0 || PRAZNIKI_DATUM.indexOf(datumStr) >= 0) {
+      preskocenih++;
+      continue;
+    }
+
+    const cas = URNIK[dan].cas;
+
+    // Preskoči če termin že obstaja (isti datum + ura)
+    const zeObstaja = obstojeci.some(s => s.datum === datumStr && s.cas === cas) ||
+                      novVrstice.some(r => r[1] === datumStr && r[2] === cas);
+    if (zeObstaja) { preskocenih++; continue; }
+
+    // Dodaj: [id, datum, cas, tip, max_mest, naziv, aktiven]
+    novVrstice.push([uid(), datumStr, cas, 'Skupinski', URNIK[dan].mest, 'Pilates', true]);
+    ustvarjenih++;
+  }
+
+  // Zapiši vse naenkrat (hitreje)
+  if (novVrstice.length > 0) {
+    const startRow = sheet.getLastRow() + 1;
+    // Stolpca datum (B) in cas (C) naj bosta TEKST, da ju Sheets ne pretvori v datum
+    sheet.getRange(startRow, 2, novVrstice.length, 2).setNumberFormat('@');
+    sheet.getRange(startRow, 1, novVrstice.length, 7).setValues(novVrstice);
+  }
+
+  Logger.log(`✅ Ustvarjenih ${ustvarjenih} terminov, preskočenih ${preskocenih} (obstoječi/prazniki).`);
+  return { ok: true, ustvarjenih, preskocenih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  DODAJ TERMINE — TBox Center Izola
+//  Ponedeljki 19:00 in četrtki 17:45, 5 mest, do konca 2026.
+//  Naziv "Pilates - TBox Izola" (ločimo po lokaciji).
+//  Zaženi enkrat.
+// ════════════════════════════════════════════════════════════
+
+function dodajTermineIzola() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  const obstojeci = sheetToObjects(sheet);
+
+  // Urnik Izola: dan → {ura, mest}
+  const URNIK = {
+    1: { cas: '19:00', mest: 5 },  // ponedeljek
+    4: { cas: '17:45', mest: 5 }   // četrtek
+  };
+  const NAZIV = 'Pilates - TBox Izola';
+
+  const PRAZNIKI = ['01-01','01-02','02-08','04-27','05-01','05-02',
+    '06-25','08-15','10-31','11-01','12-25','12-26'];
+  const PRAZNIKI_DATUM = ['2025-04-21','2026-04-06','2027-03-29'];
+
   const danes = new Date();
   danes.setHours(0,0,0,0);
-  const zacetek = new Date(2026, 8, 11, 0, 0);  // 11.9.2026
-  const konec = new Date(2026, 8, 17, 23, 59);  // 17.9.2026
-  if(danes >= zacetek && danes <= konec){
-    const b = document.getElementById('restBanner');
-    if(b) b.style.display = 'block';
-  }
-})();
+  const konec = new Date(2026, 11, 31); // do 31.12.2026
 
-// Naloži nastavljivo pravilo odpovedi in posodobi besedilo
-fetch(API_URL+'?action=getSettings').then(r=>r.json()).then(s=>{
-  ODPOVED_URE = s.odpoved_ure || 4;
-  const el = document.getElementById('odpovedHint');
-  if(el) el.textContent = `Odpoved možna do ${ODPOVED_URE} ure pred treningom`;
-}).catch(()=>{});
-</script>
-</body>
-</html>
+  let ustvarjenih = 0, preskocenih = 0;
+  const novVrstice = [];
+
+  for (let d = new Date(danes); d <= konec; d.setDate(d.getDate() + 1)) {
+    const dan = d.getDay();
+    if (!URNIK[dan]) continue;
+
+    const datumStr = d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+    const md = String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+
+    if (PRAZNIKI.indexOf(md) >= 0 || PRAZNIKI_DATUM.indexOf(datumStr) >= 0) {
+      preskocenih++; continue;
+    }
+
+    const cas = URNIK[dan].cas;
+    // Preskoči če že obstaja termin z isto lokacijo (datum + ura + naziv)
+    const zeObstaja = obstojeci.some(s => s.datum === datumStr && s.cas === cas && s.naziv === NAZIV) ||
+                      novVrstice.some(r => r[1] === datumStr && r[2] === cas);
+    if (zeObstaja) { preskocenih++; continue; }
+
+    novVrstice.push([uid(), datumStr, cas, 'Skupinski', URNIK[dan].mest, NAZIV, true]);
+    ustvarjenih++;
+  }
+
+  if (novVrstice.length > 0) {
+    const startRow = sheet.getLastRow() + 1;
+    sheet.getRange(startRow, 2, novVrstice.length, 2).setNumberFormat('@');
+    sheet.getRange(startRow, 1, novVrstice.length, 7).setValues(novVrstice);
+  }
+
+  Logger.log(`✅ TBox Izola: ustvarjenih ${ustvarjenih} terminov, preskočenih ${preskocenih}.`);
+  return { ok: true, ustvarjenih, preskocenih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  POBRIŠI STARE/PRETEKLE TERMINE (neobvezno čiščenje)
+//  Zaženi občasno da Sheet ostane pregleden
+// ════════════════════════════════════════════════════════════
+
+function pobrisiPretekleTermine() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  const danes = Utilities.formatDate(new Date(), 'GMT', 'yyyy-MM-dd');
+  const data = sheet.getDataRange().getValues();
+
+  let pobrisanih = 0;
+  // Od zadaj naprej (da se vrstice ne premaknejo)
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (data[i][1] && data[i][1] < danes) {
+      sheet.deleteRow(i + 1);
+      pobrisanih++;
+    }
+  }
+  Logger.log(`🗑️ Pobrisanih ${pobrisanih} preteklih terminov.`);
+  return { ok: true, pobrisanih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  POPRAVI & PONOVNO USTVARI TERMINE
+//  Zaženi ENKRAT če so termini v napačnem formatu (datum/čas).
+//  Pobriše vse termine in jih ustvari na novo pravilno.
+// ════════════════════════════════════════════════════════════
+
+function popraviTermine() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.slots);
+
+  // Pobriši vse razen glave
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+
+  Logger.log('🗑️ Stari termini pobrisani. Ustvarjam nove...');
+
+  // Ustvari na novo (z pravilnim formatom)
+  return generirajTermine();
+}
+
+// ════════════════════════════════════════════════════════════
+//  PRISOTNOST — označi kdo je prišel / ni prišel (no-show)
+//  data: { id (booking id), prisoten: true/false }
+// ════════════════════════════════════════════════════════════
+
+function oznaciPrisotnost(ss, data) {
+  const sheet = ss.getSheetByName(SHEETS.bookings);
+  const row = findRowById(sheet, data.id);
+  if (row < 0) return { error: 'Rezervacija ni najdena' };
+
+  const head = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const prisCol = head.indexOf('prisotnost') + 1;
+  if (prisCol < 1) return { error: 'Stolpec prisotnost ne obstaja — zaženi posodobiStrukturo()' };
+
+  const vrednost = data.prisoten ? 'prisoten' : 'ni-prisel';
+  sheet.getRange(row, prisCol).setValue(vrednost);
+
+  // Če ni prišel (no-show), preštej pri stranki
+  const booking = sheetToObjects(sheet).find(b => b.id === data.id);
+  if (booking && booking.client_id && !data.prisoten) {
+    const clientSheet = ss.getSheetByName(SHEETS.clients);
+    const client = sheetToObjects(clientSheet).find(c => c.id === booking.client_id);
+    if (client) {
+      const clientRow = findRowById(clientSheet, booking.client_id);
+      const cHead = clientSheet.getRange(1,1,1,clientSheet.getLastColumn()).getValues()[0];
+      const nsCol = cHead.indexOf('st_noshow') + 1;
+      if (nsCol > 0) {
+        const trenutno = parseInt(client.st_noshow||0) + 1;
+        clientSheet.getRange(clientRow, nsCol).setValue(trenutno);
+      }
+    }
+  }
+
+  return { ok: true };
+}
+
+// ════════════════════════════════════════════════════════════
+//  PONAVLJAJOČA REZERVACIJA
+//  Rezervira isti dan+uro za več tednov vnaprej
+//  data: { client_id, dan_v_tednu (1-4), cas, tednov (npr. 4) }
+// ════════════════════════════════════════════════════════════
+
+function ponavljajocaRezervacija(ss, data) {
+  const slotSheet = ss.getSheetByName(SHEETS.slots);
+  const bookSheet = ss.getSheetByName(SHEETS.bookings);
+  const clientSheet = ss.getSheetByName(SHEETS.clients);
+
+  const client = sheetToObjects(clientSheet).find(c => c.id === data.client_id);
+  if (!client) return { error: 'Stranka ni najdena' };
+
+  const slots = sheetToObjects(slotSheet);
+  const tednov = parseInt(data.tednov) || 4;
+  let rezerviranih = 0;
+  let preskocenih = 0;
+  const rezultati = [];
+
+  // Najdi vse prihodnje termine z ujemajočim dnem in uro
+  const danes = new Date(); danes.setHours(0,0,0,0);
+
+  const ustreznilSlots = slots.filter(s => {
+    if (!s.datum || !s.cas) return false;
+    if (s.cas !== data.cas) return false;
+    const d = new Date(s.datum + 'T00:00:00');
+    if (d < danes) return false;
+    return d.getDay() === parseInt(data.dan_v_tednu);
+  }).sort((a,b) => a.datum.localeCompare(b.datum)).slice(0, tednov);
+
+  ustreznilSlots.forEach(slot => {
+    const existing = sheetToObjects(bookSheet).filter(b => b.slot_id === slot.id && b.status === 'potrjena');
+    // Preskoči če zasedeno ali že rezervirano
+    if (existing.length >= parseInt(slot.max_mest||1)) { preskocenih++; return; }
+    if (existing.some(b => b.client_id === client.id)) { preskocenih++; return; }
+
+    bookSheet.appendRow([
+      uid(), slot.id, client.id, client.ime, client.email||'', client.telefon||'',
+      new Date().toISOString().slice(0,10), 'potrjena', ''
+    ]);
+    rezerviranih++;
+    rezultati.push(fmtSlot(slot));
+  });
+
+  if (rezerviranih > 0) {
+    sendAdminEmail(`🟢 Ponavljajoča rezervacija: ${client.ime} (${rezerviranih}x)`,
+      emailTemplate('Ponavljajoča rezervacija','🟢',[
+        ['Stranka', client.ime],
+        ['Rezerviranih', `${rezerviranih} terminov`],
+        ['Termini', rezultati.join('<br>')]
+      ]));
+  }
+
+  return { ok: true, rezerviranih, preskocenih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  MESEČNI IZVOZ — ustvari nov list z vsemi podatki za mesec
+//  Zaženi ročno: izberi 'mesecniIzvoz' → Zaženi
+//  Ustvari list "Izvoz-YYYY-MM" ki ga lahko preneseš kot Excel
+// ════════════════════════════════════════════════════════════
+
+function mesecniIzvoz() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const bookings = sheetToObjects(ss.getSheetByName(SHEETS.bookings));
+  const slots = sheetToObjects(ss.getSheetByName(SHEETS.slots));
+  const payments = sheetToObjects(ss.getSheetByName(SHEETS.payments));
+  const clients = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+
+  const now = new Date();
+  const mesec = now.toISOString().slice(0,7); // YYYY-MM
+  const listIme = 'Izvoz-' + mesec;
+
+  // Pobriši star list če obstaja
+  const obstojeci = ss.getSheetByName(listIme);
+  if (obstojeci) ss.deleteSheet(obstojeci);
+
+  const sheet = ss.insertSheet(listIme);
+  const slotMap = {}; slots.forEach(s => slotMap[s.id] = s);
+  const clientMap = {}; clients.forEach(c => clientMap[c.id] = c);
+
+  // ── REZERVACIJE ta mesec ──
+  sheet.appendRow(['REZERVACIJE ZA ' + mesec]);
+  sheet.appendRow(['Datum','Čas','Stranka','Email','Telefon','Status','Prisotnost']);
+  const monthBookings = bookings.filter(b => {
+    const slot = slotMap[b.slot_id];
+    return slot && slot.datum && slot.datum.slice(0,7) === mesec;
+  }).sort((a,b) => {
+    const sa = slotMap[a.slot_id], sb = slotMap[b.slot_id];
+    return (sa.datum+sa.cas).localeCompare(sb.datum+sb.cas);
+  });
+  monthBookings.forEach(b => {
+    const slot = slotMap[b.slot_id];
+    sheet.appendRow([slot.datum, slot.cas, b.ime, b.email, b.telefon, b.status, b.prisotnost||'']);
+  });
+
+  sheet.appendRow([]);
+  sheet.appendRow(['PLAČILA ZA ' + mesec]);
+  sheet.appendRow(['Stranka','Opis','Znesek (€)','Rok','Status']);
+  const monthPayments = payments.filter(p => p.rok && p.rok.slice(0,7) === mesec);
+  let skupajPlacano = 0;
+  monthPayments.forEach(p => {
+    const c = clientMap[p.client_id];
+    sheet.appendRow([c?c.ime:'—', p.opis, parseFloat(p.znesek||0), p.rok, p.status]);
+    if (p.status === 'placano') skupajPlacano += parseFloat(p.znesek||0);
+  });
+  sheet.appendRow([]);
+  sheet.appendRow(['SKUPAJ PLAČANO:', skupajPlacano + ' €']);
+
+  // Oblikovanje glave
+  sheet.getRange(1,1).setFontWeight('bold').setFontSize(14);
+  sheet.setColumnWidth(1, 120);
+  sheet.setColumnWidth(3, 150);
+
+  Logger.log('✅ Izvoz ustvarjen: list "' + listIme + '". Prenesi ga preko Datoteka → Prenesi → Excel.');
+  return { ok: true, list: listIme, rezervacij: monthBookings.length, placano: skupajPlacano };
+}
+
+// ════════════════════════════════════════════════════════════
+//  NASTAVI STOLPEC TELEFON KOT BESEDILO
+//  Zaženi ENKRAT — prepreči da Google briše začetne ničle
+//  Po tem ročno popravi obstoječe številke (dodaj manjkajoče 0)
+// ════════════════════════════════════════════════════════════
+
+function telefonKotBesedilo() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.clients);
+  // Stolpec C (telefon) = 3, vse vrstice
+  const lastRow = Math.max(sheet.getLastRow(), 100);
+  sheet.getRange(2, 3, lastRow, 1).setNumberFormat('@');
+  Logger.log('✅ Stolpec telefon nastavljen kot besedilo. Zdaj ročno dodaj manjkajoče začetne ničle.');
+  return { ok: true };
+}
+
+// ════════════════════════════════════════════════════════════
+//  MESEČNI RESET PAKETOV
+//  Zaženi avtomatsko 1. v mesecu (sprožilec).
+//  Resetira porabljene obiske na 0 (paket šteje od začetka).
+//  Neporabljeni obiski propadejo. Pošlje opomnik za plačilo.
+// ════════════════════════════════════════════════════════════
+
+function mesecniResetPaketov() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.clients);
+  const clients = sheetToObjects(sheet);
+
+  const head = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const porabCol = head.indexOf('ure_porabljene') + 1; // stolpec porabljenih
+
+  let resetiranih = 0;
+  const seznam = [];
+
+  clients.forEach(c => {
+    // Samo stranke s paketom z omejenim številom obiskov
+    if (c.paket && parseInt(c.ure_skupaj||0) > 0) {
+      const row = findRowById(sheet, c.id);
+      if (row > 0 && porabCol > 0) {
+        sheet.getRange(row, porabCol).setValue(0); // reset porabljenih
+        resetiranih++;
+        seznam.push(`${c.ime} — ${c.paket}`);
+      }
+    }
+  });
+
+  // Obvesti Evo
+  if (resetiranih > 0) {
+    sendAdminEmail(`🔄 Nov mesec — ${resetiranih} paketov resetiranih`,
+      emailTemplate('Mesečni reset paketov','🔄',[
+        ['Resetiranih', `${resetiranih} strank`],
+        ['Stranke', seznam.join('<br>')],
+        ['Opomba', 'Obiski so resetirani na polno. Stranke morajo plačati nov paket za ta mesec.']
+      ], 'Ne pozabi pobrati plačil za nov mesec!'));
+  }
+
+  Logger.log(`✅ Resetiranih ${resetiranih} paketov za nov mesec.`);
+  return { ok: true, resetiranih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  POENOTI IMENA V REZERVACIJAH
+//  Zaženi ročno — popravi stara imena v rezervacijah, da se
+//  ujemajo s trenutnimi imeni strank (poveže po telefonu/emailu).
+// ════════════════════════════════════════════════════════════
+
+function poenotiImenaVRezervacijah() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const clients = sheetToObjects(ss.getSheetByName(SHEETS.clients));
+  const bookSheet = ss.getSheetByName(SHEETS.bookings);
+  if (!bookSheet || bookSheet.getLastRow() < 2) return { ok: true, popravljenih: 0 };
+
+  const head = bookSheet.getRange(1,1,1,bookSheet.getLastColumn()).getValues()[0];
+  const imeCol = head.indexOf('ime') + 1;
+  const norm = t => String(t||'').replace(/[\s\/+-]/g,'').replace(/^0+/,'');
+
+  const bookings = sheetToObjects(bookSheet);
+  let popravljenih = 0;
+
+  bookings.forEach((b, i) => {
+    // Najdi stranko po telefonu ali emailu
+    const stranka = clients.find(c => {
+      const telUjem = norm(c.telefon) && norm(c.telefon) === norm(b.telefon);
+      const emailUjem = String(c.email||'').trim().toLowerCase() &&
+        String(c.email||'').trim().toLowerCase() === String(b.email||'').trim().toLowerCase();
+      return telUjem || emailUjem;
+    });
+    // Če najdena in ime različno, popravi
+    if (stranka && stranka.ime && stranka.ime !== b.ime) {
+      bookSheet.getRange(i + 2, imeCol).setValue(stranka.ime);
+      popravljenih++;
+    }
+  });
+
+  Logger.log(`✅ Poenotenih ${popravljenih} imen v rezervacijah.`);
+  return { ok: true, popravljenih };
+}
+
+// ════════════════════════════════════════════════════════════
+//  NASTAVI VSEM TERMINOM 8 MEST
+//  Zaženi enkrat — popravi max_mest na 8 pri vseh terminih.
+// ════════════════════════════════════════════════════════════
+
+function nastaviVsem8Mest() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEETS.slots);
+  if (!sheet || sheet.getLastRow() < 2) return { ok: true, popravljenih: 0 };
+
+  const head = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+  const mestCol = head.indexOf('max_mest') + 1;
+  if (mestCol < 1) return { error: 'Stolpec max_mest ni najden' };
+
+  const lastRow = sheet.getLastRow();
+  const trenutne = sheet.getRange(2, mestCol, lastRow - 1, 1).getValues();
+  let popravljenih = 0;
+  const nove = trenutne.map(r => {
+    if (parseInt(r[0]) !== 8) popravljenih++;
+    return [8];
+  });
+  sheet.getRange(2, mestCol, lastRow - 1, 1).setValues(nove);
+
+  Logger.log(`✅ Nastavljenih 8 mest pri vseh terminih (spremenjenih ${popravljenih}).`);
+  return { ok: true, popravljenih };
+}
